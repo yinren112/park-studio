@@ -1,0 +1,9 @@
+node_modules
+original
+output
+data
+.git
+.env
+__pycache__
+*.log
+*.zip

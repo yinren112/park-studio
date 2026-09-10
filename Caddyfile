@@ -1,0 +1,11 @@
+{$PARK_DOMAIN} {
+    encode gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        X-Frame-Options DENY
+    }
+    reverse_proxy park:8767 {
+        flush_interval -1
+    }
+}

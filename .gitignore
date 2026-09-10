@@ -1,0 +1,14 @@
+node_modules/
+data/
+output/
+original/
+__pycache__/
+.env
+*.log
+*.zip
+.playwright-cli/
+交付清单.json
+
+# Public documentation and selected showcase assets are tracked.
+!docs/
+!docs/**

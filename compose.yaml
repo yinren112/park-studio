@@ -1,0 +1,41 @@
+services:
+  park:
+    build: .
+    restart: unless-stopped
+    environment:
+      LAILIN_OPERATOR_PASSWORD: ${LAILIN_OPERATOR_PASSWORD:?Set a unique operator password}
+      LAILIN_MODE: ${LAILIN_MODE:-simulated}
+      LAILIN_GATEWAY_TOKEN: ${LAILIN_GATEWAY_TOKEN:-}
+      LAILIN_SECURE_COOKIE: ${LAILIN_SECURE_COOKIE:-0}
+      LAILIN_PUBLIC_ORIGIN: ${LAILIN_PUBLIC_ORIGIN:-}
+    ports:
+      - "127.0.0.1:8767:8767"
+    volumes:
+      - park_data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  https:
+    image: caddy:2-alpine
+    profiles: [publish]
+    restart: unless-stopped
+    depends_on:
+      park:
+        condition: service_healthy
+    environment:
+      PARK_DOMAIN: ${PARK_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+volumes:
+  park_data:
+  caddy_data:
+  caddy_config:
