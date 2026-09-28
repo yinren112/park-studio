@@ -119,6 +119,21 @@
       "warning": 75,
       "alarm": 150,
       "recovery": 60
+    },
+    "bench": {
+      "label": "台架环境",
+      "icon": "leaf",
+      "metric": "temperature",
+      "metricLabel": "探头温度",
+      "unit": "°C",
+      "range": [
+        -20,
+        60
+      ],
+      "base": 25,
+      "warning": 28,
+      "alarm": 30,
+      "recovery": 27
     }
   },
   "assets": [
@@ -916,8 +931,8 @@
     },
     {
       "id": "ENV-01",
-      "type": "sensor",
-      "name": "微环境监测站 1",
+      "type": "bench",
+      "name": "台架温湿度探头",
       "zone": "D",
       "zoneName": "道路与公共区",
       "position": [
@@ -926,15 +941,17 @@
         30
       ],
       "modelNode": "asset/ENV-01",
-      "serial": "LL-2609-ENV-0001",
-      "manufacturer": "来霖 · 演示资产",
-      "installedAt": "2026-06-01",
-      "maintenanceDue": "2026-12-01",
-      "protocol": "MQTT / 网关转发",
+      "serial": "台架型号与序列号待实物核验",
+      "manufacturer": "参考点表：建大仁科 RS-WS-N01-8-T",
+      "installedAt": null,
+      "maintenanceDue": "按实物手册",
+      "protocol": "Modbus RTU / TCP 协议模拟",
       "source": "simulated",
-      "owner": "园区设施运维组",
-      "metric": "pm25",
-      "unit": "μg/m³"
+      "owner": "台架验证",
+      "metric": "temperature",
+      "unit": "°C",
+      "locationNote": "虚拟展示位置，不代表实物园区",
+      "historyNote": "温度留存历史；湿度仅实时显示"
     },
     {
       "id": "ENV-02",
@@ -1015,7 +1032,7 @@
     "depth": 124,
     "area": 20336,
     "coordinateSystem": "local-meters-y-up",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "fictional": true
   }
 }

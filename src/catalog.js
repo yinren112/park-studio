@@ -10,6 +10,7 @@
         charger: { label: '充电设施', icon: 'plug', metric: 'temperature', metricLabel: '模块温度', unit: '°C', range: [-40, 130], base: 36, warning: 55, alarm: 72, recovery: 48 },
         gate: { label: '出入管理', icon: 'gate', metric: 'cycles', metricLabel: '累计通行', unit: '次', range: [0, 100000000], base: 260, warning: null, alarm: null, recovery: null },
         sensor: { label: '环境感知', icon: 'leaf', metric: 'pm25', metricLabel: 'PM2.5', unit: 'μg/m³', range: [0, 2000], base: 24, warning: 75, alarm: 150, recovery: 60 },
+        bench: { label: '台架环境', icon: 'leaf', metric: 'temperature', metricLabel: '探头温度', unit: '°C', range: [-20, 60], base: 25, warning: 28, alarm: 30, recovery: 27 },
     };
     const assets = [];
     const zones = { A: '研发办公区', B: '生产物流区', C: '能源设备区', D: '道路与公共区' };
@@ -29,7 +30,8 @@
     [[19, 0, 41.1], [26, 0, 41.1], [33, 0, 41.1], [40, 0, 41.1], [47, 0, 41.1], [54, 0, 41.1]].forEach((p, i) => add('charger', p, 'C', `双枪充电桩 ${i + 1}`));
     [[-4.4, 0, 54.8], [4.4, 0, 54.8]].forEach((p, i) => add('gate', p, 'D', i ? '南门出口道闸' : '南门入口道闸'));
     [[3.5, 0, 30], [-11, 0, 24], [-5, 0, -30], [55, 0, -13]].forEach((p, i) => add('sensor', p, i === 1 ? 'A' : 'D', `微环境监测站 ${i + 1}`));
-    return { types, assets, zones, site: { name: '来霖智造园', width: 164, depth: 124, area: 20336, coordinateSystem: 'local-meters-y-up', version: '2.0.0', fictional: true } };
+    Object.assign(assets.find(a => a.id === 'ENV-01'), {type: 'bench', name: '台架温湿度探头', metric: 'temperature', unit: '°C', protocol: 'Modbus RTU / TCP 协议模拟', serial: '台架型号与序列号待实物核验', manufacturer: '参考点表：建大仁科 RS-WS-N01-8-T', installedAt: null, maintenanceDue: '按实物手册', owner: '台架验证', locationNote: '虚拟展示位置，不代表实物园区', historyNote: '温度留存历史；湿度仅实时显示'});
+    return { types, assets, zones, site: { name: '来霖智造园', width: 164, depth: 124, area: 20336, coordinateSystem: 'local-meters-y-up', version: '2.1.0', fictional: true } };
 })();
 
 ;

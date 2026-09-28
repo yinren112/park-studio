@@ -1,0 +1,25 @@
+{
+  "source": "modbus-simulator",
+  "model": "Renke RS-WS-N01-8-T register profile (protocol simulator)",
+  "deviceId": "ENV-01",
+  "transport": "tcp",
+  "host": "127.0.0.1",
+  "port": 15020,
+  "unitId": 1,
+  "baudrate": 4800,
+  "parity": "N",
+  "bytesize": 8,
+  "stopbits": 1,
+  "functionCode": 3,
+  "startAddress": 0,
+  "registerCount": 2,
+  "registers": [
+    {"metric": "humidity", "offset": 0, "signed": false, "scale": 0.1, "min": 0, "max": 80},
+    {"metric": "temperature", "offset": 1, "signed": true, "scale": 0.1, "min": -20, "max": 60}
+  ],
+  "pollSeconds": 2,
+  "timeoutSeconds": 1,
+  "endpoint": "http://127.0.0.1:18868/api/telemetry",
+  "tokenEnv": "LAILIN_GATEWAY_TOKEN",
+  "stateFile": "../data/modbus-simulator-state.json"
+}

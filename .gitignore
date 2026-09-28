@@ -1,4 +1,6 @@
 node_modules/
+.venv-modbus/
+.venv-acceptance/
 data/
 output/
 original/
@@ -6,6 +8,7 @@ __pycache__/
 .env
 *.log
 *.zip
+adapters/*.local.json
 .playwright-cli/
 交付清单.json
 

@@ -9,10 +9,10 @@
     const date = (t, short = false) => t ? new Date(t).toLocaleString('zh-CN', short ? { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false } : { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '暂无';
     const metricLabels = { latency: ['链路延时', 'ms'], fps: ['帧率', 'fps'], bitrate: ['码率', 'Mbps'], power: ['有功功率', 'kW'], voltage: ['电压', 'V'], current: ['电流', 'A'], temperature: ['温度', '°C'], rpm: ['风机转速', 'rpm'], flow: ['流量', 'm³/h'], pressure: ['压力', 'MPa'], humidity: ['相对湿度', '%'], wind: ['风速', 'm/s'], cycles: ['累计通行', '次'], position: ['闸杆状态', ''] };
     const s = { selected: 'PMP-01', snapshot: null, devices: new Map(cat.assets.map(a => [a.id, { ...a, status: 'unknown', metrics: {}, quality: 'missing' }])), session: { authenticated: false }, view: 'scene', status: 'all', type: 'all', zone: 'all', query: '', hours: 1, history: null, labels: true, alarmFilter: 'active', received: 0, connected: false, preview: !!preview, loginNext: null };
+    const gatewayLabel = globalThis.LAILIN_SOURCE_LABEL || '网关接入 · 来源待核验';
     let viewer = null, meta = null, stream = null, historyGeneration = 0, historyAbort = null, confirmCallback = null, destroyed = false, authBusy = false;
     const assetRows = new Map(), markers = new Map(), buildingLabels = [];
     const timers = [];
-    const heroTitle = document.querySelector('.scene-corner').innerHTML;
     function toast(text, error = false) { const d = document.createElement('div'); d.className = `toast${error ? ' error' : ''}`; d.textContent = text; $('toasts').append(d); setTimeout(() => d.remove(), 6000); }
     function error(e) { toast(e.message || String(e), true); }
     async function api(path, { method = 'GET', body, headers = {}, signal } = {}) {
@@ -51,7 +51,7 @@
             signal?.removeEventListener('abort', abort);
         }
     }
-    function renderSession() { const authenticated = !!s.session.authenticated, label = authenticated ? '操作员 (具备控制权限)' : '访客模式 (只读监控)'; $('user-label').textContent = label; $('login-button').querySelector('.user-avatar').textContent = authenticated ? '管' : '访'; $('login-button').setAttribute('aria-label', label); $('login-button').title = authenticated ? `${label} · 点击退出` : `${label} · 点击登录`; $('demo-credentials').hidden = s.session.demo === false; if($('mobile-account'))$('mobile-account').textContent=authenticated?'退出':'登录'; }
+    function renderSession() { const authenticated = !!s.session.authenticated, label = authenticated ? (globalThis.LAILIN_SOURCE_LABEL ? '操作员 · 告警确认' : '操作员 · 模拟控制') : preview ? '访客 · 只读' : '访客 · 登录'; $('user-label').textContent = label; $('login-button').setAttribute('aria-label', label); $('login-button').title = authenticated ? `${label} · 点击退出` : `${label} · 点击登录`; $('demo-credentials').hidden = s.session.demo === false; if($('mobile-account'))$('mobile-account').textContent=authenticated?'退出':'登录'; }
     function needAuth(callback) { if (preview) {
         toast('当前为离线只读预览。运行完整项目后可登录、确认告警和执行模拟控制。');
         return;
@@ -62,16 +62,16 @@
     function ask({ title, description, note = false, label = '确认', callback }) { confirmCallback = callback; $('confirm-title').textContent = title; $('confirm-description').textContent = description; $('confirm-note-label').hidden = !note; $('confirm-note').value = ''; $('confirm-submit').textContent = label; $('confirm-dialog').showModal(); }
     function syncConnection() {
         const stale = !s.connected || Date.now() - s.received > 8500;
-        $('data-source').textContent = preview ? '离线只读 · 模拟数据' : s.snapshot?.mode === 'gateway' ? '网关接入模式' : stale ? '模拟数据 · 暂未同步' : '模拟数据 · 实时更新';
-        $('connection-label').textContent = preview ? '离线预览 · 固定模拟快照' : stale ? '数据连接中断 · 保留最后快照' : `${s.snapshot?.mode==='gateway'?'网关数据已连接':'实时模拟数据已连接'} · SSE`;
-        $('connection-dot').style.background = preview ? '#a2ac92' : stale ? '#bf995f' : '#679778';
+        $('data-source').textContent = preview ? '模拟快照' : globalThis.LAILIN_SOURCE_LABEL ? gatewayLabel : stale ? '模拟 · 未同步' : '模拟 · SSE';
+        $('data-source').parentElement.classList.toggle('stale', !preview && stale);
+        $('data-source').parentElement.title = preview ? '离线只读预览，固定模拟快照；时间为快照采样时间' : stale ? '数据连接中断，保留最后快照' : '实时模拟数据已连接';
+        $('clock').textContent = preview ? (s.snapshot ? date(s.snapshot.serverTime, true) : '—') : date(Date.now(), true);
         $('connection-banner').hidden = !stale || !!preview;
         if (stale && !preview)
             $('connection-message').textContent = '无法获取最新状态。显示最后快照，不将连接中断误判为设备离线。';
-        $('last-sync').textContent = s.snapshot ? `数据采样 ${date(s.snapshot.serverTime, true)}` : '尚未收到状态快照';
     }
     function validateBinding() { if (!meta)
-        return; const expected = new Set(cat.assets.map(a => a.id)), bound = meta.groups.filter(g => g.assetId), set = new Set(bound.map(g => g.assetId)), data = new Set(s.devices.keys()); const okay = bound.length === expected.size && set.size === expected.size && [...expected].every(id => set.has(id) && data.has(id)) && data.size === expected.size; $('binding-status').textContent = okay ? `${set.size} / ${expected.size} 资产节点已校验` : '资产与模型不一致 · 已阻止错绑'; if (!okay)
+        return; const expected = new Set(cat.assets.map(a => a.id)), bound = meta.groups.filter(g => g.assetId), set = new Set(bound.map(g => g.assetId)), data = new Set(s.devices.keys()); const okay = bound.length === expected.size && set.size === expected.size && [...expected].every(id => set.has(id) && data.has(id)) && data.size === expected.size; $('binding-status').textContent = okay ? `${set.size}/${expected.size} 资产节点已校验` : '资产与模型不一致，已阻止错绑'; if (!okay)
         throw new Error('资产与三维模型的唯一编号不一致。请检查目录和模型版本。'); }
     function applySnapshot(snapshot) {
         if(snapshot?.dataHealthy===false){s.connected=false;syncConnection();return;}
@@ -129,7 +129,7 @@
         error(e);
     } }); stream.addEventListener('auth-required',()=>{stream?.close();s.connected=false;s.session={authenticated:false};renderSession();syncConnection();$('connection-message').textContent='操作员会话已结束，请重新登录后继续查看实时数据。';}); stream.onerror = () => { s.connected = false; syncConnection(); }; }
     function renderSummary() { const c = s.snapshot?.summary; if (!c)
-        return; const text = { 'kpi-total': c.total, 'kpi-online': c.online, 'kpi-online-total': `/ ${c.total}`, 'kpi-rate': `在线率 ${(c.online / c.total * 100).toFixed(1)}%`, 'kpi-alarms': c.activeAlarms, 'kpi-ack': `${c.unacknowledged} 项待确认 · 按规则恢复`, 'kpi-power': fmt(c.powerKW, 1), 'nav-alarm-count': c.activeAlarms, 'asset-total': c.total, 'filter-all': c.total, 'filter-abnormal': c.alarm + c.warning + c.offline, 'filter-offline': c.offline }; for (const [id, v] of Object.entries(text))
+        return; $('open-alarms').classList.toggle('is-alarm', c.activeAlarms > 0); const text = { 'kpi-total': c.total, 'kpi-online': c.online, 'kpi-alarms': c.activeAlarms, 'kpi-ack': c.unacknowledged, 'kpi-power': fmt(c.powerKW, 1), 'nav-alarm-count': c.activeAlarms, 'asset-total': c.total, 'filter-all': c.total, 'filter-abnormal': c.alarm + c.warning + c.offline, 'filter-offline': c.offline }; for (const [id, v] of Object.entries(text))
         $(id).textContent = v; }
     function renderList() {
         const sorted = [...s.devices.values()].sort((a, b) => ({ alarm: 0, offline: 1, warning: 2, normal: 3, unknown: 4 }[a.status] - { alarm: 0, offline: 1, warning: 2, normal: 3, unknown: 4 }[b.status]) || a.id.localeCompare(b.id));
@@ -139,9 +139,9 @@
             if (!row) {
                 row = document.createElement('button');
                 row.type = 'button';
-                row.className = 'asset-item';
+                row.className = 'asset-row';
                 row.dataset.assetId = d.id;
-                row.innerHTML = `<span class="asset-type-icon">${Lailin.icons(cat.types[d.type].icon)}</span><span class="asset-text"><strong>${esc(d.name)}</strong><small><span>${esc(d.id)}</span> · ${esc(d.zoneName)}</small></span><i class="dot"></i>`;
+                row.innerHTML = `<code>${esc(d.id)}</code><span><b>${esc(d.name)}</b><small>${esc(cat.types[d.type].label)} · ${esc(d.zoneName)}</small></span><i></i>`;
                 row.onclick = () => select(d.id);
                 row.ondblclick = () => focus(false);
                 assetRows.set(d.id, row);
@@ -151,7 +151,8 @@
             row.classList.toggle('selected', d.id === s.selected);
             row.setAttribute('aria-label', `${d.name} ${d.id} ${names[d.status]}`);
             row.setAttribute('aria-pressed', String(d.id === s.selected));
-            row.querySelector('.dot').className = `dot ${d.status}`;
+            row.querySelector('i').className = `st-${d.status}`;
+            row.classList.toggle('alarm', d.status === 'alarm');
             const match = (s.type === 'all' || d.type === s.type) && (s.zone === 'all' || d.zone === s.zone) && (s.status === 'all' || s.status === 'abnormal' && ['alarm', 'warning', 'offline'].includes(d.status) || d.status === s.status) && `${d.name} ${d.id}`.toLowerCase().includes(s.query.toLowerCase());
             row.hidden = !match;
             if (match)
@@ -172,54 +173,54 @@
             alarmSignature = null;
             $('device-name').textContent = d.name;
             $('device-subtitle').textContent = `${d.id} · ${t.label}`;
-            $('inspector-icon').innerHTML = Lailin.icons(t.icon);
             $('metric-name').textContent = t.metricLabel;
             $('metric-unit').textContent = t.unit;
-            $('trend-title').textContent = `${d.name} · ${t.metricLabel}`;
-            $('trend-unit').textContent = t.unit;
+            $('trend-unit').textContent = `${t.metricLabel} · ${t.unit}`;
             $('device-node').textContent = d.modelNode;
-            const rows = [['资产编号', d.id], ['所属分区', d.zoneName], ['设备序列号', d.serial], ['运维责任', d.owner], ['模型位置', d.position.map(v => Number(v).toFixed(1)).join(', ') + ' m'], ['数据来源', dataMode==='gateway'?'受鉴权网关':dataMode==='pending'?'等待数据源':'模拟器 · 非实物数据'], ['建议协议', d.protocol], ['计划保养', d.maintenanceDue]];
+            const rows = [['资产编号', d.id], ['所属分区', d.zoneName], ['设备序列号', d.serial], ['运维责任', d.owner], ['模型位置', d.position.map(v => Number(v).toFixed(1)).join(', ') + ' m'], ['数据来源', dataMode==='gateway'?gatewayLabel:dataMode==='pending'?'等待数据源':'模拟器 · 非实物数据'], ['建议协议', d.protocol], ['计划保养', d.maintenanceDue]];
+            if(d.locationNote)rows.push(['位置说明',d.locationNote],['历史范围',d.historyNote]);
             $('asset-details').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
             $('command-status').textContent = '';
         }
         $('device-status').textContent = names[d.status] || '未知';
-        $('device-status').className = `status-badge ${d.status}`;
-        $('quality-badge').textContent = d.quality === 'good' ? '有效样本' : d.quality === 'stale' ? '最后样本 · 已过期' : '尚无数据';
+        $('device-dot').className = `st-${d.status}`;
+        $('device-status').parentElement.classList.toggle('alarm', d.status === 'alarm');
+        $('quality-badge').textContent = d.quality === 'good' ? '有效样本' : d.quality === 'stale' ? '最后样本已过期' : '尚无数据';
         $('metric-value').textContent = fmt(val, d.type === 'gate' ? 0 : 1);
         document.querySelector('.main-reading').className = `main-reading ${d.status}`;
         const scale = t.alarm !== null ? t.alarm * 1.3 : Math.max(val || 1, 100);
         $('reading-fill').style.width = `${Math.max(0, Math.min(100, (val || 0) / scale * 100))}%`;
         $('warning-threshold').hidden = t.alarm === null;
         $('warning-threshold').style.left = `${(t.alarm || 0) / scale * 100}%`;
-        $('threshold-caption').textContent = t.alarm !== null ? `预警 ≥ ${t.warning} / 告警 ≥ ${t.alarm} / 恢复 ≤ ${t.recovery} ${t.unit}` : '累计通行指标，不配置越限告警';
+        $('threshold-caption').textContent = t.alarm !== null ? `${d.type==='bench'?'台架演示阈值 · ':''}预警 ≥ ${t.warning} / 告警 ≥ ${t.alarm} / 恢复 ≤ ${t.recovery} ${t.unit}` : '累计通行指标，不配置越限告警';
         const others = Object.entries(d.metrics).filter(([k]) => k !== t.metric).slice(0, 2);
         $('secondary-readings').innerHTML = others.map(([k, v]) => { let [l, u] = metricLabels[k] || [k, '']; if (k === 'power' && d.type === 'light')
-            u = 'W'; return `<div class="secondary-reading"><span>${esc(l)}</span><b>${k === 'position' ? (v === 1 ? '已抬杆' : '已落杆') : fmt(v, k==='pressure'?3:1)}<small>${esc(u)}</small></b></div>`; }).join('');
+            u = 'W'; return `<dt>${esc(l)}</dt><dd>${k === 'position' ? (v === 1 ? '已抬杆' : '已落杆') : `${fmt(v, k==='pressure'?3:1)} ${esc(u)}`}</dd>`; }).join('');
         $('sample-time').textContent = `${d.status === 'offline' ? '最后有效采样' : '采样时间'} ${date(d.sampleAt)}${d.source === 'simulated' ? ' · 模拟' : ''}`;
         const alarms = (s.snapshot?.alarms || []).filter(a => a.device_id === d.id && a.state !== 'resolved');
         $('device-alarm-count').textContent = alarms.length;
         const sig = alarms.map(a => a.id + a.state + a.severity).join(',');
         if (sig !== alarmSignature || !$('device-alarms').children.length) {
             alarmSignature = sig;
-            $('device-alarms').innerHTML = alarms.length ? alarms.map(a => `<div class="alarm-card"><strong>${esc(a.rule_code === 'OFFLINE' ? '设备心跳超时' : t.metricLabel + '持续越限')}</strong><p>${esc(date(a.opened_at))}<br>${a.rule_code === 'OFFLINE' ? '通信恢复后自动关闭；不是主动断电。' : '确认只代表已知悉，指标恢复后才关闭。'}</p>${a.state === 'open' ? `<button data-ack="${esc(a.id)}">确认告警</button>` : '<span class="acknowledged">已确认 · 持续观察</span>'}</div>`).join('') : '<div class="no-alarms">' + Lailin.icons('check') + '<span>当前设备无活动告警</span></div>';
+            $('device-alarms').innerHTML = alarms.length ? alarms.map(a => `<div class="alarm-box"><header>${esc(a.rule_code === 'OFFLINE' ? '设备心跳超时' : t.metricLabel + '持续越限')}<span>${esc(date(a.opened_at))}</span></header><p>${a.rule_code === 'OFFLINE' ? '通信恢复后自动关闭；不是主动断电。' : '确认只代表已知悉，指标恢复后才关闭。'}</p>${a.state === 'open' ? `<button class="btn" data-ack="${esc(a.id)}">确认告警</button>` : '<span class="acked">已确认，持续观察</span>'}</div>`).join('') : '<p class="quiet-line">无活动告警</p>';
         }
         $('control-section').hidden = !['light', 'gate'].includes(d.type) || s.snapshot?.mode === 'gateway';
         $('device-control').textContent = d.type === 'gate' ? (d.controlState === 'open' ? '落下闸杆' : '抬起闸杆') : (d.powered ? '关闭路灯' : '打开路灯');
         $('device-control').disabled = d.status === 'offline' || d.status === 'unknown';
         $('demo-alarm').disabled = t.alarm === null;
-        $('explode-device').hidden = d.type !== 'pump';
+        $('explode-device').classList.toggle('available', d.type === 'pump');
         $('demo-tools').hidden = s.snapshot?.mode === 'gateway';
     }
-    function select(id) { document.body.classList.add('inspected'); if (!s.devices.has(id))
+    function select(id) { if (!s.devices.has(id))
         return; s.selected = id; if (viewer?.isolated)
         focus(true);
     else
-        viewer?.select(id); document.body.classList.remove('hide-inspector', 'assets-open'); if (innerWidth <= 960)
-        document.body.classList.add('inspector-open'); renderList(); renderInspector(); renderMarkers(); loadHistory(); }
-    function focus(only) { document.body.classList.add('inspected'); if (!viewer)
-        return; viewer.focus(s.selected, only); document.querySelector('.scene-corner').innerHTML = only ? `<span class="eyebrow">ENGINEERED TO THE DETAIL / ${esc(s.selected)}</span><h1>${esc(s.devices.get(s.selected).name)}</h1><p>独立资产节点 · 米制比例 · 几何与运行状态同步</p>` : heroTitle; document.body.classList.toggle('isolated', only); $('view-label').textContent = only ? '设备精查' : '设备定位'; $('isolate-device').textContent = only ? '返回园区' : '单独查看'; $('view-home').classList.remove('active'); $('view-top').classList.remove('active'); if (innerWidth <= 960)
-        document.body.classList.remove('inspector-open'); positionMarkers(); }
-    function home(top = false) { document.body.classList.remove('inspected','energy-view'); $('view-energy').classList.remove('active'); document.querySelector('.scene-location b').textContent=top?'平面俯视':'园区全景'; document.querySelector('.scene-corner').innerHTML = heroTitle; viewer?.home(top); document.body.classList.remove('isolated'); $('view-label').textContent = top ? '平面俯视' : '透视视图'; $('isolate-device').textContent = '单独查看'; $('view-home').classList.toggle('active', !top); $('view-top').classList.toggle('active', top); positionMarkers(); }
+        viewer?.select(id); document.body.classList.remove('panel-hidden', 'assets-open'); renderList(); renderInspector(); renderMarkers(); loadHistory(); }
+    function setTitle(name, sub) { $('view-name').textContent = name; $('view-label').textContent = sub; }
+    function setMode(id) { for (const b of ['view-home', 'view-top', 'view-energy']) $(b).classList.toggle('active', b === id); }
+    function focus(only) { if (!viewer)
+        return; viewer.focus(s.selected, only); const d = s.devices.get(s.selected); setTitle(`${d.id} ${d.name}`, only ? '单独查看 · 米制比例' : '定位'); document.body.classList.toggle('isolated', only); $('isolate-device').textContent = only ? '返回园区' : '单独查看'; setMode(null); positionMarkers(); }
+    function home(top = false) { document.body.classList.remove('energy-view'); viewer?.home(top); document.body.classList.remove('isolated'); setTitle(top ? '园区平面' : '园区全景', top ? '俯视' : '透视'); $('isolate-device').textContent = '单独查看'; $('explode-device').textContent = '展开结构'; setMode(top ? 'view-top' : 'view-home'); positionMarkers(); }
     function renderMarkers() {
         if (!meta)
             return;
@@ -236,7 +237,9 @@
             }
             const d = s.devices.get(id);
             el.className = `marker ${d.status}${id === s.selected ? ' selected' : ''}`;
-            el.innerHTML = `<i></i>${esc(id)}${id === s.selected ? `<span> ${esc(d.name)}</span>` : ''}`;
+            const type = cat.types[d.type], reading = d.metrics[type.metric];
+            const caption = d.status === 'offline' || d.quality !== 'good' ? names[d.status] : ['alarm','warning'].includes(d.status) ? `${names[d.status]} ${fmt(reading,d.type==='gate'?0:1)} ${type.unit}` : `${fmt(reading,d.type==='gate'?0:1)} ${type.unit}`;
+            el.innerHTML = `<span class="tag">${esc(id)}${id === s.selected || ['alarm','warning','offline'].includes(d.status) ? `<span>${esc(caption)}</span>` : ''}</span><i class="stem"></i><i class="foot"></i>`;
             el.setAttribute('aria-label', `选择 ${d.name}，${names[d.status]}`);
         }
         for (const [id, el] of markers)
@@ -255,9 +258,9 @@
             const group = meta.groups.find(g => g.assetId === id);
             if (!group)
                 continue;
-            const p = viewer.project([group.center[0], group.max[1] + .7, group.center[2]]);
+            const p = viewer.project([group.center[0], group.max[1] + .15, group.center[2]]);
             el.hidden = !s.labels || !p.visible || p.x < 24 || p.x > width - 24 || p.y < 25 || p.y > height - 48 || (viewer.isolated && id !== s.selected);
-            if(!el.hidden){ const overlap=occupied.some(q=>Math.abs(q.x-p.x)<86&&Math.abs(q.y-p.y)<25); if(overlap)el.hidden=true;else occupied.push(p); }
+            if(!el.hidden){ const w=el.offsetWidth;const overlap=occupied.some(q=>Math.abs(q.x-p.x)<(w+q.w)/2+8&&Math.abs(q.y-p.y)<30); if(overlap&&id!==s.selected)el.hidden=true;else occupied.push({...p,w}); }
             el.style.left = `${p.x}px`;
             el.style.top = `${p.y}px`;
         }
@@ -296,28 +299,28 @@
             Lailin.chart($('trend-chart'), h, cat.types[d.type]);
             $('chart-message').hidden = h.sampleCount > 0;
             $('chart-message').textContent = '该时间窗口尚无有效样本，不填充虚构曲线。';
-            $('history-description').textContent = `${preview ? '离线模拟历史' : '数据库历史'} · ${h.sampleCount} 样本 · 缺测不补值`;
+            $('history-description').textContent = `${preview ? '模拟历史' : '数据库历史'} · ${h.sampleCount} 样本`;
             const v = h.points.filter(p => p.value !== null).map(p => p.value);
-            $('history-stats').textContent = v.length ? `MIN ${fmt(Math.min(...v))} / MAX ${fmt(Math.max(...v))} ${h.unit}` : '—';
+            $('history-stats').textContent = v.length ? `${fmt(Math.min(...v))}–${fmt(Math.max(...v))} ${h.unit}` : '—';
         }
         catch (e) {
             if (generation !== historyGeneration)
                 return;
             s.history = previous;
-            if(previous){$('chart-message').hidden=true;$('history-description').textContent='更新暂不可用 · 保留上次查询，时间轴未前移';}
+            if(previous){$('chart-message').hidden=true;$('history-description').textContent='更新失败，保留上次查询';}
             else{$('trend-chart').replaceChildren();$('chart-message').hidden=false;$('chart-message').textContent=e.message;}
             $('history-stats').textContent = previous?'最后有效历史':'查询失败';
         }
     }
-    function showView(view) { document.body.classList.toggle('data-mode',view !== 'scene'); s.view = view; all('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view)); $('scene-section').hidden = view !== 'scene'; $('data-section').hidden = view === 'scene'; if (view === 'scene') {
+    function showView(view) { document.body.classList.toggle('data-mode',view !== 'scene'); s.view = view; all('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view)); $('data-section').hidden = view === 'scene'; if (view === 'scene') {
         setTimeout(() => viewer?.render(), 30);
         return;
-    } $('data-eyebrow').textContent = view === 'audit' ? 'AUDIT TRAIL' : 'ALARM CENTER'; $('data-title').textContent = view === 'audit' ? '操作记录' : '告警中心'; $('data-subtitle').textContent = view === 'audit' ? '规则变化、登录、确认与控制均在服务端留痕。' : '确认只表示已知悉，测量值恢复后告警才会关闭。'; $('alarm-state-filters').hidden = view !== 'alarms'; refreshData(); }
+    } $('data-title').textContent = view === 'audit' ? '操作记录' : '告警记录'; $('data-subtitle').textContent = view === 'audit' ? '规则变化、登录、确认与控制均在服务端留痕。' : '确认只表示已知悉，测量值恢复后告警才会关闭。'; $('alarm-state-filters').hidden = view !== 'alarms'; refreshData(); }
     function renderAlarms(items) {
         if (s.view !== 'alarms')
             return;
         const rows = items.filter(a => s.alarmFilter === 'all' || s.alarmFilter === 'active' && a.state !== 'resolved' || a.state === s.alarmFilter);
-        $('data-content').innerHTML = rows.length ? `<table class="records-table"><thead><tr><th>级别 / 设备</th><th>告警内容</th><th>首次发生</th><th>处理状态</th><th>操作</th></tr></thead><tbody>${rows.map(a => `<tr><td><span class="status-badge ${a.severity === 'critical' ? 'alarm' : 'warning'}">${a.severity === 'critical' ? '告警' : '预警'}</span><small>${esc(a.device_id)}</small></td><td><strong>${esc(a.title)}</strong><small>${a.rule_code === 'OFFLINE' ? '心跳超时' : `规则阈值 ${esc(a.threshold)} ${esc(a.unit)}`}</small></td><td>${esc(date(a.opened_at))}</td><td>${states[a.state]}<small>${esc(a.acknowledged_by || '—')}</small></td><td>${a.state === 'open' ? `<button class="table-ack" data-ack="${esc(a.id)}">确认</button>` : `<button class="text-button" data-locate="${esc(a.device_id)}">定位设备 ↗</button>`}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state">${Lailin.icons('check')}<strong>此筛选下没有告警记录</strong><p>已恢复记录可在“全部”或“已恢复”中查看。</p></div>`;
+        $('data-content').innerHTML = rows.length ? `<table class="records-table"><thead><tr><th>级别 / 设备</th><th>告警内容</th><th>首次发生</th><th>处理状态</th><th>操作</th></tr></thead><tbody>${rows.map(a => `<tr><td><span class="sev ${a.severity === 'critical' ? 'alarm' : 'warning'}">${a.severity === 'critical' ? '告警' : '预警'}</span><small><code>${esc(a.device_id)}</code></small></td><td><strong>${esc(a.title)}</strong><small>${a.rule_code === 'OFFLINE' ? '心跳超时' : `规则阈值 ${esc(a.threshold)} ${esc(a.unit)}`}</small></td><td>${esc(date(a.opened_at))}</td><td>${states[a.state]}<small>${esc(a.acknowledged_by || '—')}</small></td><td>${a.state === 'open' ? `<button class="table-ack" data-ack="${esc(a.id)}">确认</button>` : `<button class="link" data-locate="${esc(a.device_id)}">在场景中定位</button>`}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><strong>此筛选下没有告警记录</strong><p>已恢复记录可在“全部”或“已恢复”中查看。</p></div>`;
     }
     async function refreshData() {
         if (s.view === 'alarms') {
@@ -339,7 +342,7 @@
                 return;
             }
             try {
-                const data = await api('/audit?limit=100'), labels = { 'system.seed': '初始化目录', 'auth.login': '操作员登录', 'auth.logout': '退出登录', 'auth.failed': '登录失败', 'alarm.opened': '产生告警', 'alarm.resolved': '告警恢复', 'alarm.acknowledged': '确认告警', 'demo.scenario': '切换模拟工况', 'command.accepted': '接收控制指令', 'command.confirmed': '收到模拟回执', 'command.failed': '指令失败' };
+                const data = await api('/audit?limit=100'), labels = { 'system.start': '服务启动', 'system.seed': '初始化目录', 'auth.login': '操作员登录', 'auth.logout': '退出登录', 'auth.failed': '登录失败', 'alarm.opened': '产生告警', 'alarm.resolved': '告警恢复', 'alarm.acknowledged': '确认告警', 'demo.scenario': '切换模拟工况', 'command.accepted': '接收控制指令', 'command.confirmed': '收到模拟回执', 'command.failed': '指令失败' };
                 $('data-content').innerHTML = `<table class="records-table"><thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>资产 / 详情</th></tr></thead><tbody>${data.items.map(a => `<tr><td>${date(a.at)}</td><td>${esc(a.actor)}</td><td><strong>${esc(labels[a.action] || a.action)}</strong><small>${esc(a.action)}</small></td><td>${esc(a.device_id || '系统')}<small title="${esc(a.detail)}">${esc(a.detail.slice(0, 72))}</small></td></tr>`).join('')}</tbody></table>`;
             }
             catch (e) {
@@ -388,12 +391,12 @@
                 viewer.setStates(s.snapshot.devices);
             $('model-loading').hidden = true;
             document.body.classList.add('scene-ready');
-            $('model-stats').textContent = `WebGL 2 · ${(meta.stats.triangles / 1000).toFixed(0)}k 三角面 · ${meta.stats.assets} 资产`;
-            const labels = [['01', '研发中心', [-36, 17, 24]], ['02', '生产车间 A', [-32, 11, -24]], ['03', '生产车间 B', [29, 10.2, -30]], ['04', '能源中心', [35, 7.8, 18]], ['05', '南门岗亭', [13, 4, 55]]];
+            $('model-stats').textContent = `WebGL 2 · ${Math.round(meta.stats.triangles / 1000)}k 三角面 · ${meta.stats.meshes} 网格`;
+            const labels = [['1#', '研发中心', [-36, 19.5, 24]], ['2#', '生产车间 A', [-32, 12.5, -24]], ['3#', '生产车间 B', [29, 13.5, -30]], ['4#', '能源中心', [35, 11, 18]], ['5#', '南门岗亭', [13, 5, 58.8]]];
             for (const [num, name, position] of labels) {
                 const el = document.createElement('div');
                 el.className = 'building-label';
-                el.innerHTML = `<span>${num}</span>${name}`;
+                el.innerHTML = `<b>${num}</b>${name}`;
                 $('building-labels').append(el);
                 buildingLabels.push({ el, position });
             }
@@ -404,17 +407,15 @@
             $('model-loading').hidden = true;
             $('graphics-error').hidden = false;
             $('graphics-error').textContent = e.message;
-            $('model-stats').textContent = '图形未就绪 · 资产与告警仍可使用';
+            $('model-stats').textContent = '图形未就绪，资产与告警仍可使用';
             error(e);
         }
     }
     function bind() {
-        const syncPanels=()=>{const leftVisible=innerWidth>1000||document.body.classList.contains('assets-open'),rightVisible=innerWidth<=620?document.body.classList.contains('inspector-open'):document.body.classList.contains('inspected')&&!document.body.classList.contains('hide-inspector');const left=document.querySelector('.sidebar'),right=$('right-panel');left.inert=!leftVisible;left.setAttribute('aria-hidden',String(!leftVisible));right.inert=!rightVisible;right.setAttribute('aria-hidden',String(!rightVisible));};
+        const syncPanels=()=>{const mobile=innerWidth<=900,list=$('asset-panel'),right=$('right-panel');list.inert=mobile&&!document.body.classList.contains('assets-open');right.inert=mobile&&document.body.classList.contains('panel-hidden');};
         new MutationObserver(syncPanels).observe(document.body,{attributes:true,attributeFilter:['class']});window.addEventListener('resize',syncPanels);syncPanels();
-        const icons = { 'search-icon': 'search', 'mobile-assets': 'menu', 'toggle-night': 'moon', 'toggle-labels': 'tag', 'layers-button': 'layers', 'export-history': 'download' };
-        for (const [id, icon] of Object.entries(icons))
-            $(id).innerHTML = Lailin.icons(icon);
-        all('[data-icon]').forEach(el => el.innerHTML = Lailin.icons(el.dataset.icon));
+        const check = (id, on) => { $(id).classList.toggle('active', on); $(id).setAttribute('aria-pressed', String(on)); return on; };
+        const flip = id => check(id, !$(id).classList.contains('active'));
         for (const [type, t] of Object.entries(cat.types)) {
             const o = document.createElement('option');
             o.value = type;
@@ -437,21 +438,20 @@
         $('view-home').onclick = () => home();
         $('view-top').onclick = () => home(true);
         $('reset-scene').onclick = () => home();
-        $('tour-button').onclick = () => { if(!document.body.classList.contains('touring'))home(); const active=viewer?.toggleTour(); $('tour-button').classList.toggle('active',active); };
-        $('view-energy').onclick = () => { home(); document.body.classList.add('energy-view'); document.querySelector('.scene-location b').textContent='能源工坊'; viewer?.energyView(); $('view-home').classList.remove('active'); $('view-energy').classList.add('active'); };
-        $('section-toggle').onchange = () => viewer?.toggleSection();
-        $('photo-button').onclick = () => { document.body.classList.toggle('photo-mode'); $('photo-button').classList.toggle('active',document.body.classList.contains('photo-mode')); };
+        $('tour-button').onclick = () => { if(!document.body.classList.contains('touring'))home(); const active=!!viewer?.toggleTour(); check('tour-button',active); if(active)setTitle('园区全景','镜头巡游'); };
+        $('view-energy').onclick = () => { home(); document.body.classList.add('energy-view'); setTitle('4# 能源中心', '循环水泵与换热机组'); viewer?.energyView(); setMode('view-energy'); };
+        $('section-toggle').onclick = () => check('section-toggle', !!viewer?.toggleSection());
+        $('photo-button').onclick = () => { document.body.classList.toggle('photo-mode'); $('photo-button').classList.toggle('active',document.body.classList.contains('photo-mode')); setTimeout(() => viewer?.render(), 30); };
         $('snapshot-button').onclick = () => viewer?.capture();
         $('export-model').onclick = async () => { try { $('export-model').disabled=true; await viewer?.exportGLB(); toast('已导出完整 GLB，资产编号保留在节点中。'); } catch(e){error(e);} finally{$('export-model').disabled=false;} };
-        $('explode-device').onclick = () => { const active=viewer?.toggleExplode(); $('explode-device').classList.toggle('active',active); $('explode-device').textContent=active?'合拢结构':'展开结构'; };
-        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]')){document.body.classList.remove('photo-mode','assets-open','inspector-open');home();}});
+        $('explode-device').onclick = () => { const active=!!viewer?.toggleExplode(); $('explode-device').classList.toggle('active',active); $('explode-device').textContent=active?'合拢结构':'展开结构'; };
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]')){const photo=document.body.classList.contains('photo-mode');document.body.classList.remove('photo-mode','assets-open');$('photo-button').classList.remove('active');if(photo)viewer?.render();else home();}});
         $('toggle-night').onclick = () => { if (!viewer)
-            return; viewer.setNight(!viewer.night); document.body.classList.toggle('night', viewer.night); $('toggle-night').innerHTML = Lailin.icons(viewer.night ? 'sun' : 'moon'); $('toggle-night').setAttribute('aria-pressed', String(viewer.night)); };
-        $('toggle-labels').onclick = () => { s.labels = !s.labels; $('toggle-labels').classList.toggle('active', s.labels); positionMarkers(); };
-        $('layers-button').onclick = () => { $('layers-popover').hidden = !$('layers-popover').hidden; };
-        $('layer-landscape').onchange = e => viewer?.setLayer('landscape', e.target.checked);
-        $('layer-pipes').onchange = e => viewer?.setLayer('pipes', e.target.checked);
-        $('high-quality').onchange = e => viewer?.quality(e.target.checked);
+            return; viewer.setNight(!viewer.night); document.body.classList.toggle('night', viewer.night); check('toggle-night', viewer.night); if (s.history) Lailin.chart($('trend-chart'), s.history, cat.types[s.devices.get(s.selected).type]); };
+        $('toggle-labels').onclick = () => { s.labels = flip('toggle-labels'); positionMarkers(); };
+        $('layer-landscape').onclick = () => viewer?.setLayer('landscape', flip('layer-landscape'));
+        $('layer-pipes').onclick = () => viewer?.setLayer('pipes', flip('layer-pipes'));
+        $('high-quality').onclick = () => viewer?.quality(flip('high-quality'));
         all('[data-hours]').forEach(b => b.onclick = () => { s.hours = Number(b.dataset.hours); all('[data-hours]').forEach(x => x.classList.toggle('active', x === b)); loadHistory(); });
         $('export-history').onclick = exportHistory;
         all('[data-view]').forEach(b => b.onclick = () => showView(b.dataset.view));
@@ -501,14 +501,18 @@
         $('device-control').onclick = control;
         $('help-button').onclick = () => $('help-dialog').showModal();
         $('reconnect-button').onclick = reconnect;
-        $('mobile-assets').onclick = () => { document.body.classList.toggle('assets-open'); document.body.classList.remove('inspector-open'); };
+        $('mobile-assets').onclick = () => document.body.classList.toggle('assets-open');
         $('mobile-account').onclick = () => $('login-button').click();
         $('close-sidebar').onclick = () => document.body.classList.remove('assets-open');
-        $('close-inspector').onclick = () => { document.body.classList.remove('inspected'); document.body.classList.add('hide-inspector'); document.body.classList.remove('inspector-open'); };
+        $('close-inspector').onclick = () => document.body.classList.add('panel-hidden');
         window.addEventListener('resize', () => { if (s.history)
             Lailin.chart($('trend-chart'), s.history, cat.types[s.devices.get(s.selected).type]); positionMarkers(); });
     }
-    async function start() { bind(); renderList(); renderInspector(); loadModel(); if (preview) {
+    async function start() { bind(); renderList(); renderInspector(); await loadModel();
+    // Cold shader compilation blocks the main thread. Start timed HTTP requests
+    // after the first render, so a completed response is not aborted behind it.
+    await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+    if (preview) {
         applySnapshot(preview.snapshot);
         loadHistory();
     }
@@ -517,12 +521,12 @@
             s.session = await api('/auth/session');
             renderSession();
             await reconnect();
-            loadHistory();
+            if(s.connected)loadHistory();
         }
         catch (e) {
             error(e);
         }
-    } timers.push(setInterval(() => { $('clock').textContent = date(Date.now(), true); syncConnection(); }, 1000)); timers.push(setInterval(() => { if (!preview && s.view === 'scene')
+    } timers.push(setInterval(syncConnection, 1000)); timers.push(setInterval(() => { if (!preview && s.view === 'scene')
         loadHistory(); }, 15000)); }
     function dispose() { if (destroyed)
         return; destroyed = true; stream?.close(); timers.forEach(clearInterval); historyAbort?.abort(); viewer?.dispose(); }

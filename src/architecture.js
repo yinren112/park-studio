@@ -19,31 +19,38 @@ function solar(g,x,y,z,cols,rows,roofY){
 }
 function hq(root){
  const g=group(root,'building/research-center',-36,0,25);
- box(g,0,.18,0,44,.36,27,'stone',.18);
+ box(g,0,.18,0,44,.36,27,'stone');
+ // Four office floors, 3.75 m floor-to-floor. Orientation follows the sun: +Z faces south and gets
+ // horizontal shading, east/west get vertical fins, the north face is a punched spandrel wall.
  for(let k=0;k<4;k++){
  const y=1.1+k*3.75;
- roundedSlab(g,0,y+1.62,0,39.6,3.32,23.6,1.6,'glass');
- // Broad horizontal reveals and fully rounded corners give the facade a continuous envelope.
- roundedSlab(g,0,y-.15,0,41.4,.38,25.2,2,'ivory');
- roundedSlab(g,0,y+3.45,0,41.5,.34,25.3,2,'ivory');
- for(let x=-17.6;x<=17.6;x+=1.45){
- box(g,x,y+1.57,12,.085,3.22,.48,'copper',.015);
- box(g,x,y+1.57,-12,.085,3.22,.32,'metal');
- if(Math.abs(Math.round(x*10)+k*13)%5<2)box(g,x+.65,y+1.57,11.85,1.12,2.78,.015,'windowLight');
+ box(g,0,y-.12,0,41,.42,25,'ivory');
+ box(g,0,y+1.5,0,39.6,2.82,23.6,'glass');
+ box(g,0,y+3.18,0,39.7,.66,23.7,'dark');
+ for(const z of [-11.87,11.87])box(g,0,y+.95,z,39.6,.05,.07,'metal');
+ for(let x=-18.75;x<=18.8;x+=1.5)for(const z of [-11.86,11.86])box(g,x,y+1.5,z,.06,2.82,.12,'metal');
+ for(let z=-10.5;z<=10.6;z+=1.5)for(const x of [-19.86,19.86])box(g,x,y+1.5,z,.12,2.82,.06,'metal');
+ // South brise-soleil, interrupted by the double-height entrance portal.
+ const spans=k<2?[[-20,.2],[9.8,20]]:[[-20,20]];
+ for(const [a,b] of spans){box(g,(a+b)/2,y+2.98,12.3,b-a,.07,.9,'metal');for(let x=a+.6;x<b;x+=3)box(g,x,y+2.94,12.3,.05,.12,.9,'dark');}
+ for(let x=-17.6;x<=17.6;x+=1.5)if(Math.abs(Math.round(x*10)+k*13)%5<2&&(k>1||x<0||x>10))box(g,x+.75,y+1.5,11.83,1.36,2.5,.015,'windowLight');
+ // East and west: vertical copper fins, deeper at mid-height where low sun is worst.
+ for(let z=-10.2;z<10.5;z+=1.2){box(g,20.08,y+1.5,z,.42,2.82,.07,'copper');box(g,-20.08,y+1.5,z,.42,2.82,.07,'copper');if(Math.abs(Math.round(z*10)+k*3)%6<3)box(g,19.8,y+1.5,z+.6,.02,2.5,1.1,'windowLight');}
+ // North: solid spandrel panels between window strips.
+ for(let x=-18;x<=18;x+=6)box(g,x,y+1.5,-11.95,1.1,2.82,.12,'ivory');
  }
- for(let z=-9.2;z<9.5;z+=1.45){box(g,19.85,y+1.57,z,.4,3.22,.085,'copper');box(g,-19.85,y+1.57,z,.4,3.22,.085,'metal');if(Math.abs(Math.round(z*10)+k*3)%6<3)box(g,19.83,y+1.57,z+.65,.02,2.7,1.13,'windowLight');}
- for(const sx of [-1,1])for(const sz of [-1,1])for(let i=0;i<=6;i++){
- const a=i/6*Math.PI/2,xx=sx*(17.8+Math.cos(a)*2.05),zz=sz*(9.8+Math.sin(a)*2.05);
- const fin=box(g,xx,y+1.57,zz,.08,3.22,.38,'copper');fin.rotation.y=sx*sz*(Math.PI/2-a);
- }
- }
- // Sculpted roof, deep parapets, hidden plant zone and a planted terrace.
- roundedSlab(g,0,16.32,0,41.5,.42,25.4,2,'ivory');
- box(g,0,16.58,0,38.5,.12,22.4,'roof');
- roundedSlab(g,0,16.85,0,40.8,.5,24.8,1.65,'ivory',.38);
- box(g,11,16.85,6,12,.3,7,'paving',.08);railing(g,11,16.9,6,13,8);
- for(let x=6;x<17;x+=2.2){box(g,x,17.18,9,1.9,.6,.8,'stone',.06);box(g,x,17.5,9,1.7,.35,.65,'hedge',.12);}
- for(const x of [-15,-10]){box(g,x,16.85,6,4.5,.25,7,'stone',.07);box(g,x,17,6,4.25,.1,6.75,'grass',.08);}
+ // Roof slab, membrane, parapet with metal coping, stair and lift overrun.
+ box(g,0,16.2,0,41,.4,25,'ivory');
+ box(g,0,16.44,0,40.5,.08,24.5,'roof');
+ for(const z of [-12.375,12.375]){box(g,0,16.95,z,41,1.1,.25,'ivory');box(g,0,17.52,z,41.1,.05,.36,'metal');}
+ for(const x of [-20.375,20.375]){box(g,x,16.95,0,.25,1.1,25,'ivory');box(g,x,17.52,0,.36,.05,25.1,'metal');}
+ box(g,-16.5,18,-3,5,3.2,4.5,'ivory');box(g,-16.5,19.65,-3,5.3,.12,4.8,'metal');
+ box(g,-16.5,17.5,-.73,1,2.1,.05,'dark');box(g,-16.5,16.62,-.3,1.4,.3,.9,'concrete');
+ for(let i=0;i<6;i++)box(g,-18.5+i*.07,16.5+i*.001,-3,.9,.02,.3,'metal');
+ for(const [x,z] of [[-19.4,-11.4],[19.4,-11.4],[-19.4,11.4],[19.4,11.4],[0,-11.4],[0,11.4]])cylinder(g,x,16.5,z,.12,.08,'dark',10);
+ box(g,11,16.55,6,12,.16,7,'paving');railing(g,11,16.55,6,13,8);
+ for(let x=6;x<17;x+=2.2){box(g,x,16.85,9,1.9,.6,.8,'stone',.06);box(g,x,17.2,9,1.7,.3,.65,'hedge',.1);}
+ for(const x of [-15,-10]){box(g,x,16.6,6.5,4.5,.25,6,'stone');box(g,x,16.75,6.5,4.25,.1,5.75,'grass');}
  // Entrance: double height bronze portal, glass vestibule and a thin floating canopy.
  box(g,5,3.7,12.3,9.4,7.3,1,'copper',.12);box(g,5,3.4,12.88,8.4,6.4,.15,'glass');
  for(let x=2;x<=8;x+=1.5)box(g,x,2,13.03,.05,3.8,.08,'metal');
@@ -57,9 +64,8 @@ function hq(root){
  const ramp=box(g,13,.21,18.05,1.8,.1,5.9,'stone');ramp.rotation.x=Math.atan(.29/5.9);
  box(g,12.5,.35,14.8,2.8,.11,1.4,'stone',.025);
  for(const x of [12.15,13.85]){tube(g,[[x,1.31,15.1],[x,1.02,21]],.025,'metal',false);for(const z of [15.1,18.05,21])cylinder(g,x,.565+(21-z)*.29/5.9,z,.022,.9,'metal',12);}
- label(g,'L A I L I N',-7,13.9,12.38,9,1,'#ded7bf');
- label(g,'RESEARCH & INNOVATION',-7,12.92,12.39,9,.36,'#c2cbc1');
- label(g,'01',-17.8,2.5,12.5,1.8,2.4,'#c5a375');
+ label(g,'来霖智造园  研发中心',-8,16.95,12.52,9,.72,'#2f4a42');
+ label(g,'1#',-18.4,2.3,12.9,.9,.6,'#2f4a42','#e9e4d6');
  return g;
 }
 function factory(root,name,x,z,w,d,h,index){
@@ -101,7 +107,7 @@ function factory(root,name,x,z,w,d,h,index){
  for(const dx of [-2.45,2.45])box(g,xx+dx,.56,d/2+.68,.3,.8,.16,'rubber',.025);
  label(g,`${index===2?'A':'B'}${String(Math.round((xx+w/2-6)/10)+1).padStart(2,'0')}`,xx,4.55,d/2+.535,1.3,.28,'#496155');
  }
- label(g,`${index===2?'02':'03'}  /  ${index===2?'MANUFACTURING':'ADVANCED ASSEMBLY'}`,0,h-3.35,d/2+.3,w*.62,.9,'#29413a');
+ label(g,`${index===2?'2#  生产车间 A':'3#  生产车间 B'}`,-w/4,h-3.35,d/2+.3,w*.3,.9,'#29413a');
  if(index===3){
  box(g,-3.5,11.88,1,23,.22,6.2,'roof',.06);
  for(const zz of [-2.15,4.15])box(g,-3.5,12.002,zz,23.2,.025,.09,'amber');
@@ -146,11 +152,11 @@ function energy(root){
  for(let a=0;a<16;a++){const q=a*Math.PI/8;box(g,x,9.35,-3,.035,.03,3.45,'metal',0,q);}
  }
  for(const x of [-11,11]){cylinder(g,x,3.2,8.8,1.35,5.8,'metal',40);ring(g,x,1.3,8.8,1.36,.06);ring(g,x,4.9,8.8,1.36,.06);tube(g,[[x,5.8,8.8],[x,6.5,8.8],[x+2,6.5,8.8],[x+2,1,8.8]],.13,'pipe');}
- label(g,'04   ENERGY CENTRE',0,5.4,7.18,15,1.1,'#a19370');
+ label(g,'4#  能源中心',0,5.4,7.18,7,1.1,'#a19370');
  for(let x=-13;x<=13;x+=1.1)box(g,x,3,7.25,.3,3.2,.12,'metal');
  for(let z=-12;z<7;z+=2)box(g,15.175,4.15,z,.018,5.5,.015,'metal');
  box(g,15.2,1.63,2,.18,3.1,2.45,'dark',.045);box(g,15.31,1.63,2,.025,2.92,2.25,'metal',.02);box(g,15.37,1.4,2.77,.07,.32,.05,'dark',.015);
- label(g,'04',15.18,5,2,2,1.4,'#829081',null,Math.PI/2);
+ label(g,'4#',15.18,5,2,1.4,1,'#829081',null,Math.PI/2);
  return g;
 }
 export function architecture(root){
@@ -160,15 +166,6 @@ export function architecture(root){
  for(const x of [-2.8,0,2.8])for(const z of [-1.83,1.83])box(g,x,1.95,z,.07,2.6,.08,'copper');
  box(g,-3.03,1.55,0,.08,2.75,1.2,'metal',.025);box(g,-3.08,1.72,0,.03,2.24,1.04,'glass');box(g,-3.12,1.3,.38,.06,.25,.04,'copper');
  box(g,-13,4.4,-2,20,.35,5,'dark',.14);for(const x of [-22,-4]){box(g,x,.14,-2,.65,.28,.65,'stone',.05);box(g,x,2.2,-2,.22,4.4,.22,'copper');}
- label(g,'LAILIN  /  智造园',-13,4.38,.53,13,.55,'#f1e4c2');out.push(g);return out;
+ label(g,'来霖智造园',-13,4.38,.53,6,.55,'#f1e4c2');out.push(g);return out;
 }
 
-function roundedOutline(w,d,r){
- const s=new T.Shape();s.moveTo(-w/2+r,-d/2);s.lineTo(w/2-r,-d/2);s.quadraticCurveTo(w/2,-d/2,w/2,-d/2+r);s.lineTo(w/2,d/2-r);s.quadraticCurveTo(w/2,d/2,w/2-r,d/2);s.lineTo(-w/2+r,d/2);s.quadraticCurveTo(-w/2,d/2,-w/2,d/2-r);s.lineTo(-w/2,-d/2+r);s.quadraticCurveTo(-w/2,-d/2,-w/2+r,-d/2);
- return s;
-}
-function roundedSlab(g,x,y,z,w,h,d,r,mat,wall=0){
- const s=roundedOutline(w,d,r);if(wall)s.holes.push(roundedOutline(w-2*wall,d-2*wall,r-wall));
- const geo=new T.ExtrudeGeometry(s,{depth:h,steps:1,bevelEnabled:true,bevelSegments:2,bevelSize:.045,bevelThickness:.045,curveSegments:10});geo.rotateX(-Math.PI/2);geo.translate(x,y-h/2,z);
- const mesh=new T.Mesh(geo,materials[mat]);mesh.castShadow=mesh.receiveShadow=true;g.add(mesh);return mesh;
-}

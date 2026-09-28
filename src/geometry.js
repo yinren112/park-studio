@@ -33,7 +33,10 @@ export function palette(){
  material('black','#101f21',.62,.3);
  material('asphalt','#747b75',.94,0,{map:surface('asphalt','#b2b3aa',8),bumpScale:.03});materials.asphalt.bumpMap=materials.asphalt.map;
  material('paving','#e2ddcb',.84,0,{map:surface('pavers','#dfdacb',5)});
- material('grass','#6b7951',1,0,{map:surface('grass','#b0b590',6)});
+ material('grass','#80906b',1,0,{map:surface('grass','#b0b590',6)});
+ material('districtWall','#a5b2ad',.88,.03);
+ material('districtGlass','#6c8789',.38,.18,{envMapIntensity:.45});
+ material('districtRoof','#a3afa9',.9,.08);
  material('hedge','#344f30',.96);
  material('white','#e6e5d3',.75);
  material('water','#406e69',.14,.2,{envMapIntensity:1.5,clearcoat:1,clearcoatRoughness:.09,ior:1.33});
@@ -42,6 +45,9 @@ export function palette(){
  material('pump','#236b67',.43,.35,{clearcoat:.18,clearcoatRoughness:.22});
  const cast=surface('cast','#808080',1);cast.colorSpace=T.NoColorSpace;materials.pump.bumpMap=cast;materials.pump.bumpScale=.002;materials.pump.userData.worldUV=.3;
  material('pipe','#497975',.36,.7);
+ material('hydrant','#b3352c',.55,.25);
+ material('paintBlue','#3a4d5e',.42,.45);
+ material('accessible','#3f6d9e',.9,0);
  material('red','#ad583a',.5,.4);
  material('amber','#e7b25c',.4,.2,{emissive:'#efb955',emissiveIntensity:.2});
  material('lamp','#fff1cd',.3,.1,{emissive:'#ffe3ae',emissiveIntensity:1});
@@ -54,6 +60,9 @@ export function palette(){
  return materials;
 }
 export function box(parent,x,y,z,w,h,d,mat='concrete',radius=0,rot=0){
+ // Rounded edges read as moulded plastic once they scale with a building. Large members stay square;
+ // small parts keep at most a quarter of their thinnest side as a fillet.
+ radius=Math.max(w,h,d)>4?0:Math.min(radius,Math.min(w,h,d)/4);
  const key=[w,h,d,radius].join('/');
  if(!geos.has(key))geos.set(key,radius>0?new RoundedBoxGeometry(w,h,d,2,Math.min(radius,w/2,h/2,d/2)):new T.BoxGeometry(w,h,d));
  const m=new T.Mesh(geos.get(key),typeof mat==='string'?materials[mat]:mat);m.position.set(x,y,z);m.rotation.y=rot;m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
@@ -75,7 +84,7 @@ export function group(parent,name,x=0,y=0,z=0){const g=new T.Group();g.name=name
 export function label(parent,text,x,y,z,width=8,height=1.2,color='#e6e2cc',background=null,rot=0){
  const c=document.createElement('canvas');c.width=1024;c.height=Math.max(64,Math.round(1024*height/width));const ctx=c.getContext('2d');
  if(background){ctx.fillStyle=background;ctx.fillRect(0,0,c.width,c.height);}
- ctx.fillStyle=color;ctx.font=`600 ${c.height*.65}px 'Bahnschrift','Microsoft YaHei',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,c.width/2,c.height*.53,c.width*.95);
+ ctx.fillStyle=color;ctx.font=`600 ${c.height*.65}px 'Microsoft YaHei UI','Microsoft YaHei','PingFang SC',sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,c.width/2,c.height*.53,c.width*.95);
  const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;map.anisotropy=8;
  const m=new T.Mesh(new T.PlaneGeometry(width,height),new T.MeshBasicMaterial({map,transparent:true,depthWrite:false,side:T.DoubleSide,toneMapped:false}));m.position.set(x,y,z);m.rotation.y=rot;parent.add(m);return m;
 }

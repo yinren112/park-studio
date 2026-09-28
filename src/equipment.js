@@ -51,7 +51,7 @@ function pump(g,a,animations){
  tube(g,[[1,.99,-.6],[1,.99,-1.3],[1,.8,-1.65],[1,.4,-1.65]],.23,'pipe');flange(g,1,.99,-.9,.37,'z');
  cylinder(g,1,2.27,1.42,.025,.42,'metal');gauge(g,1,2.58,1.47);
  label(g,a.id,0,.19,.981,1.2,.18,'#e9e2c9','#233d36');
- label(motor,'LAILIN  /  11 kW',0,.17,.51,.82,.16,'#d0d4c5','#203a36');
+ label(motor,'11 kW  380 V',0,.17,.51,.82,.16,'#d0d4c5','#203a36');
 }
 function hvac(g,a,animations){
  box(g,0,.18,0,7.6,.35,3.6,'dark',.08);
@@ -76,7 +76,7 @@ function cabinet(g,a){
  for(let x=-.35;x<=.36;x+=.35)cylinder(g,x,1.64,.64,.04,.02,x<0?'red':'amber',16).rotation.x=Math.PI/2;
  box(g,.5,1.36,.63,.055,.3,.07,'black',.02);
  for(let y=.46;y<.99;y+=.085)box(g,0,y,.61,.95,.025,.03,'dark');
- label(g,'⚡  400 V',0,1.17,.64,.52,.2,'#87651f','#dfbe60');
+ label(g,'400 V',0,1.17,.64,.52,.2,'#5a4512','#dfbe60');
  for(const y of [.6,2.2])box(g,-.66,y,.62,.07,.17,.05,'metal',.015);
 }
 function charger(g,a){
@@ -121,8 +121,8 @@ export function equipment(root,catalog){
  const animations=[],assets=new Map();
  for(const a of catalog.assets){
  const g=group(root,a.modelNode,...a.position);g.userData.assetId=a.id;g.userData.layer='equipment';
- ({pump,hvac,meter:cabinet,charger,gate,sensor,camera:pole,light:pole}[a.type])(g,a,animations);
- const leds={pump:[-1.1,1.74,.25],hvac:[2.85,1.63,1.87],meter:[.32,1.64,.66],charger:[0,2.17,.35],gate:[0,1.33,.26],sensor:[.14,2.45,.405],camera:[.2,5.25,.58],light:[0,1.2,.095]};
+ ({pump,hvac,meter:cabinet,charger,gate,sensor,bench:sensor,camera:pole,light:pole}[a.type])(g,a,animations);
+ const leds={pump:[-1.1,1.74,.25],hvac:[2.85,1.63,1.87],meter:[.32,1.64,.66],charger:[0,2.17,.35],gate:[0,1.33,.26],sensor:[.14,2.45,.405],bench:[.14,2.45,.405],camera:[.2,5.25,.58],light:[0,1.2,.095]};
  const pilot=new T.Mesh(new T.SphereGeometry(a.type==='hvac'?.065:.035,12,8),new T.MeshStandardMaterial({color:'#759568',emissive:'#759568',emissiveIntensity:.6,roughness:.35}));pilot.position.set(...leds[a.type]);pilot.userData.indicator=true;pilot.userData.dynamic=true;pilot.name='telemetry-status-indicator';g.add(pilot);
  if(a.type==='pump'){g.getObjectByName('motor-and-coupling').add(pilot);pilot.position.set(0,.76,.25);}
  if(a.type==='pump')g.scale.setScalar(.5);

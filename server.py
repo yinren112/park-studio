@@ -28,6 +28,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parent
+# Front end = index.html (live flag injected) + these build outputs, same as the static preview.
+STATIC_FILES = {'/studio.css': 'text/css; charset=utf-8', '/preview-data.js': 'text/javascript; charset=utf-8', '/preview-runtime.js': 'text/javascript; charset=utf-8'}
 MODE = os.getenv('LAILIN_MODE', 'simulated')
 if MODE not in ('simulated', 'gateway'):
     raise SystemExit('LAILIN_MODE must be simulated or gateway')
@@ -38,7 +40,7 @@ NOW = lambda: int(time.time() * 1000)
 BOOT = str(uuid.uuid4())
 STOP = threading.Event()
 LOCK = threading.RLock()
-DB_PATH = Path(os.getenv('LAILIN_DB', str(ROOT / 'data' / 'park.sqlite3')))
+DB_PATH = Path(os.getenv('LAILIN_DB', str(ROOT / 'data' / 'park-v2.1.sqlite3')))
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 DB = sqlite3.connect(DB_PATH, check_same_thread=False, isolation_level=None)
 DB.row_factory = sqlite3.Row
@@ -75,6 +77,10 @@ STREAMS = threading.BoundedSemaphore(32)
 PASSWORD = os.getenv('LAILIN_OPERATOR_PASSWORD', 'lailin-demo-2026')
 DEFAULT_PASSWORD = PASSWORD == 'lailin-demo-2026'
 GATEWAY_TOKEN = os.getenv('LAILIN_GATEWAY_TOKEN', '')
+GATEWAY_KIND = os.getenv('LAILIN_GATEWAY_KIND', 'unverified')
+SOURCE_LABELS = {'unverified': '网关接入 · 来源待核验', 'modbus-simulator': 'Modbus TCP · 协议模拟', 'modbus-rtu': 'Modbus RTU · 台架采集'}
+if GATEWAY_KIND not in SOURCE_LABELS:
+    raise SystemExit('LAILIN_GATEWAY_KIND must be unverified, modbus-simulator or modbus-rtu.')
 COOKIE_SECURE = os.getenv('LAILIN_SECURE_COOKIE', '0') == '1'
 PUBLIC_ORIGIN = os.getenv('LAILIN_PUBLIC_ORIGIN', '').rstrip('/')
 if MODE == 'gateway' and (DEFAULT_PASSWORD or len(PASSWORD) < 12 or len(GATEWAY_TOKEN) < 24):
@@ -208,6 +214,13 @@ def initialize():
         old = {r['id']: r for r in DB.execute('SELECT * FROM device_state')}
         if old and set(old) != set(CAT):
             raise SystemExit('Stored asset catalog differs from this build. Migrate the database or use a new LAILIN_DB.')
+        if any(json.loads(row['state']).get('metric') != CAT[device_id]['metric'] or json.loads(row['state']).get('unit') != CAT[device_id]['unit'] for device_id, row in old.items()):
+            raise SystemExit('Stored asset metric/unit differs from this build. Preserve this database and use a new LAILIN_DB; no automatic conversion is allowed.')
+        if MODE == 'gateway':
+            stored_kind = DB.execute("SELECT value FROM settings WHERE key='gateway_kind'").fetchone()
+            if (stored_kind and stored_kind['value'] != GATEWAY_KIND) or (not stored_kind and old and GATEWAY_KIND != 'unverified'):
+                raise SystemExit('Gateway source differs or old provenance is unknown. Use a separate LAILIN_DB.')
+            DB.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('gateway_kind',?)", (GATEWAY_KIND,))
         seed = json.loads((ROOT / 'src' / 'seed.json').read_text(encoding='utf-8'))
         seed_devices = {d['id']: d for d in seed['snapshot']['devices']}
         now = NOW()
@@ -260,6 +273,7 @@ def simulated_metrics(d, now):
     elif d['type'] == 'pump': m.update(flow=round(44 + wave, 2), pressure=round(.31 + wave * .005, 3))
     elif d['type'] == 'charger': m.update(power=round(42 + wave * 2, 2), voltage=round(745 + wave * 3, 1))
     elif d['type'] == 'sensor': m.update(temperature=round(26 + wave * .2, 2), humidity=round(56 + wave, 2), wind=round(2.1 + wave * .1, 2))
+    elif d['type'] == 'bench': m.update(humidity=round(56 + wave, 2))
     elif d['type'] == 'gate': m.update(cycles=d['metrics'].get('cycles', 260), position=1 if d['controlState'] == 'open' else 0)
     return m
 
@@ -418,10 +432,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             u=urlparse(self.path);p=u.path;q=parse_qs(u.query)
-            if p in ('/','/lailin-park-preview.html'):
-                html=(ROOT/'lailin-park-preview.html').read_text(encoding='utf-8')
-                html=html.replace('<!--SERVER_RUNTIME-->','<script>globalThis.LAILIN_LIVE=true;</script>')
+            if p in ('/','/index.html','/lailin-park-preview.html'):
+                html=(ROOT/'index.html').read_text(encoding='utf-8')
+                label=json.dumps(SOURCE_LABELS[GATEWAY_KIND] if MODE=='gateway' else '',ensure_ascii=False)
+                html=html.replace('<!--SERVER_RUNTIME-->',f'<script>globalThis.LAILIN_LIVE=true;globalThis.LAILIN_SOURCE_LABEL={label};</script>')
                 self.send(200,html.encode(),content_type='text/html; charset=utf-8');return
+            if p in STATIC_FILES:
+                self.send(200,(ROOT/p[1:]).read_bytes(),content_type=STATIC_FILES[p]);return
             if p=='/favicon.ico':self.send(204,b'',content_type='image/x-icon');return
             if p=='/health':
                 with LOCK:DB.execute('SELECT 1').fetchone()
