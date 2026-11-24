@@ -1,0 +1,4 @@
+{
+  "buildCommand": "node build.mjs && mkdir -p public && cp index.html studio.css preview-data.js preview-runtime.js catalog.json public/",
+  "outputDirectory": "public"
+}
