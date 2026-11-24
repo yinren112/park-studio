@@ -17,6 +17,32 @@ function solar(g,x,y,z,cols,rows,roofY){
  }
  }
 }
+// One loading bay: door frame with sectional door, compression seals, pit leveller with toe guards,
+// cantilever canopy on tie rods with downlights, bollards and bumpers.
+function dock(g,xx,face){
+ box(g,xx,2.3,face+.3,6.6,4.6,.4,'ivory',.08);box(g,xx,2.15,face+.52,5.8,4.1,.05,'dark');
+ for(let yy=.4;yy<4.2;yy+=.32)box(g,xx,yy,face+.59,5.65,.025,.03,'metal');
+ for(const s of [-1,1])box(g,xx+s*2.98,2.1,face+.66,.34,4.05,.32,'rubber',.05);
+ box(g,xx,4.32,face+.66,6.3,.36,.32,'rubber',.05);
+ box(g,xx,.36,face+.86,2.3,.05,1.1,'metal',.012);
+ for(let k=-1;k<=1.01;k+=.4)box(g,xx+k,.392,face+.86,.025,.012,1,'dark');
+ box(g,xx,.37,face+1.43,2.3,.06,.08,'amber');
+ for(const s of [-1,1])box(g,xx+s*1.19,.37,face+.86,.06,.07,1.12,'amber');
+ // Canopy: deck, upturned fascia, soffit lights, rods to the wall.
+ box(g,xx,4.9,face+1.8,7.6,.15,3,'dark',.06);
+ box(g,xx,5.02,face+3.27,7.7,.4,.08,'metal',.02);
+ for(const s of [-1,1]){box(g,xx+s*3.82,5.02,face+1.8,.08,.4,3,'metal',.02);tube(g,[[xx+s*3.4,6.9,face+.42],[xx+s*3.4,5.06,face+3.15]],.03,'metal',false);box(g,xx+s*3.4,6.9,face+.36,.22,.22,.08,'dark');}
+ for(const dx of [-2,0,2])box(g,xx+dx,4.81,face+2,.9,.03,.18,'lamp',.01);
+ for(const dx of [-3.2,3.2]){cylinder(g,xx+dx,.7,face+1,.085,1.4,'amber');box(g,xx+dx,.5,face+1,.21,.12,.21,'dark');for(const y of [.9,1.2])cylinder(g,xx+dx,y,face+1,.088,.08,'black',14);}
+ for(const dx of [-2.45,2.45])box(g,xx+dx,.56,face+.68,.3,.8,.16,'rubber',.025);
+}
+// Lightning conductor on short posts along the parapet coping.
+function conductor(g,w,d,y){
+ for(const [len,horizontal,offset] of [[w,true,d/2],[w,true,-d/2],[d,false,w/2],[d,false,-w/2]]){
+ for(let t=-len/2;t<=len/2+.01;t+=2.5){const x=horizontal?t:offset,z=horizontal?offset:t;box(g,x,y+.12,z,.03,.24,.03,'metal');}
+ box(g,horizontal?0:offset,y+.24,horizontal?offset:0,horizontal?len:.025,.025,horizontal?.025:len,'metal');
+ }
+}
 function hq(root){
  const g=group(root,'building/research-center',-36,0,25);
  box(g,0,.18,0,44,.36,27,'stone');
@@ -64,6 +90,15 @@ function hq(root){
  const ramp=box(g,13,.21,18.05,1.8,.1,5.9,'stone');ramp.rotation.x=Math.atan(.29/5.9);
  box(g,12.5,.35,14.8,2.8,.11,1.4,'stone',.025);
  for(const x of [12.15,13.85]){tube(g,[[x,1.31,15.1],[x,1.02,21]],.025,'metal',false);for(const z of [15.1,18.05,21])cylinder(g,x,.565+(21-z)*.29/5.9,z,.022,.9,'metal',12);}
+ // Roof services: lightning conductor, ridge skylight over the stair hall, exhaust fans, cable tray.
+ conductor(g,40.75,24.75,17.55);
+ box(g,12,16.75,-5,8.4,.62,5.4,'ivory',.05);box(g,12,17.09,-5,8.6,.06,5.6,'metal',.02);
+ for(const s of [-1,1]){const pane=box(g,12,17.55,-5+s*1.32,8,.04,2.75,'roofGlass');pane.rotation.x=s*.42;}
+ box(g,12,18.12,-5,8.1,.1,.12,'metal',.02);
+ for(let x=8.4;x<=15.7;x+=1.2)for(const s of [-1,1]){const bar=box(g,x,17.58,-5+s*1.32,.05,.06,2.8,'metal');bar.rotation.x=s*.42;}
+ for(const x of [-4,-1]){box(g,x,16.62,1.2,1.5,.24,1.5,'dark',.04);cylinder(g,x,17.05,1.2,.5,.65,'metal',20);cylinder(g,x,17.42,1.2,.56,.08,'dark',20);cylinder(g,x,17.62,1.2,.16,.32,'metal',12);cylinder(g,x,17.86,1.2,.42,.12,'metal',20,.08);}
+ box(g,-6,16.86,-4.5,16,.07,.46,'metal');for(const s of [-1,1])box(g,-6,16.93,-4.5+s*.22,16,.1,.025,'metal');
+ for(let x=-13.5;x<=1.6;x+=2.5){box(g,x,16.63,-4.5,.12,.38,.12,'dark');box(g,x,16.5,-4.5,.5,.06,.5,'rubber',.02);}
  label(g,'来霖智造园  研发中心',-8,16.95,12.52,9,.72,'#2f4a42');
  label(g,'1#',-18.4,2.3,12.9,.9,.6,'#2f4a42','#e9e4d6');
  return g;
@@ -100,12 +135,45 @@ function factory(root,name,x,z,w,d,h,index){
  else solar(g,-18,roofY+.34,-10,15,2,roofY);
  for(let xx=-w/2+6;xx<w/2-3;xx+=10){
  if(index===2&&xx>17)continue;
- box(g,xx,2.3,d/2+.3,6.6,4.6,.4,'ivory',.08);box(g,xx,2.15,d/2+.52,5.8,4.1,.05,'dark');
- for(let yy=.4;yy<4.2;yy+=.32)box(g,xx,yy,d/2+.59,5.65,.025,.03,'metal');
- box(g,xx,4.9,d/2+1.8,7.6,.15,3,'dark',.06);
- for(const dx of [-3.2,3.2]){cylinder(g,xx+dx,.7,d/2+1,.085,1.4,'amber');box(g,xx+dx,.5,d/2+1,.21,.12,.21,'dark');}
- for(const dx of [-2.45,2.45])box(g,xx+dx,.56,d/2+.68,.3,.8,.16,'rubber',.025);
+ dock(g,xx,d/2);
  label(g,`${index===2?'A':'B'}${String(Math.round((xx+w/2-6)/10)+1).padStart(2,'0')}`,xx,4.55,d/2+.535,1.3,.28,'#496155');
+ }
+ // Rainwater: eaves gutter on both long sides, downpipes between the dock bays, shoe at the plinth.
+ for(const side of [-1,1]){
+ box(g,0,h-.2,side*(d/2+.6),w+.6,.2,.22,'metal',.04);
+ for(let xx=-w/2+1.1;xx<w/2;xx+=10){
+ const z=side*(d/2+.56);cylinder(g,xx,h/2+.1,z,.085,h-.6,'metal',10);
+ for(let y=1.6;y<h-.5;y+=2.4)box(g,xx,y,z-side*.1,.24,.05,.2,'dark');
+ box(g,xx,.48,z+side*.12,.2,.12,.32,'metal',.03);
+ }
+ }
+ // Corner trims close the cladding returns.
+ for(const sx of [-1,1])for(const sz of [-1,1])box(g,sx*(w/2+.17),h/2+.05,sz*(d/2+.17),.38,h-.1,.38,'metal',.02);
+ // Personnel door with a small canopy and wall light on the west end.
+ const pz=-d/2+6.5,px=-w/2-.3;
+ box(g,px,1.45,pz,.3,2.7,1.5,'ivory',.03);box(g,px-.1,1.35,pz,.12,2.35,1.15,'dark',.02);
+ box(g,px-.2,1.3,pz+.4,.08,.05,.22,'metal');box(g,px-.6,2.95,pz,1.2,.1,1.9,'dark',.03);box(g,px-.12,3.25,pz,.14,.2,.26,'lamp',.02);
+ for(const s of [-1,1])tube(g,[[px-.05,3.7,pz+s*.8],[px-1.15,3.0,pz+s*.8]],.018,'metal',false);
+ for(let i=0;i<3;i++)box(g,px-.6-i*.3,.38-i*.12,pz,.32,.12,1.6,'stone',.02);
+ // Caged roof ladder on the west end wall.
+ const lz=-d/2+3,lx=-w/2-.72;
+ for(const s of [-1,1])box(g,lx,h/2+.7,lz+s*.24,.06,h+1.2,.06,'metal');
+ for(let y=.6;y<h+1;y+=.3)box(g,lx,y,lz,.035,.035,.48,'metal');
+ for(let y=2.6;y<h+1.1;y+=.9)ring(g,lx-.32,y,lz,.36,.022,'metal');
+ for(const a of [-.9,0,.9])box(g,lx-.32-Math.cos(a)*.36,(h+3.7)/2,lz+Math.sin(a)*.36,.04,h-1.5,.04,'metal');
+ // Roof: walkway pads, turbine ventilators and a hatch next to the ladder.
+ const roofTop=h+.24;
+ const hatchX=-w/2+1.7,walkZ=index===2?11:11.6,ventZ=index===2?12.5:12.9;
+ box(g,hatchX,roofTop+.06,-d/2+3,1.6,.12,1.6,'dark',.03);box(g,hatchX,roofTop+.15,-d/2+3,1.45,.06,1.45,'metal',.02);
+ box(g,(hatchX+w/2-3)/2,roofTop+.035,walkZ,w/2-3-hatchX,.05,.7,'paving');
+ box(g,hatchX,roofTop+.035,(-d/2+3.8+walkZ)/2,.7,.05,walkZ+d/2-3.8,'paving');
+ const vents=(index===2?[-20,-12,0,12,20]:[-18,-10.5,-4,4,10.5,18]).map(x=>[x,ventZ]);
+ for(const [vx,vz] of vents){
+ box(g,vx,roofTop+.12,vz,1.1,.24,1.1,'dark',.04);
+ cylinder(g,vx,roofTop+.6,vz,.3,.75,'metal',16);
+ cylinder(g,vx,roofTop+1.14,vz,.42,.36,'metal',20,.2);
+ cylinder(g,vx,roofTop+1.38,vz,.18,.12,'metal',16,.04);
+ for(let k=0;k<12;k++){const fin=box(g,vx+Math.cos(k*Math.PI/6)*.36,roofTop+1.13,vz+Math.sin(k*Math.PI/6)*.36,.025,.34,.1,'metal');fin.rotation.y=-k*Math.PI/6+.35;}
  }
  label(g,`${index===2?'2#  生产车间 A':'3#  生产车间 B'}`,-w/4,h-3.35,d/2+.3,w*.3,.9,'#29413a');
  if(index===3){

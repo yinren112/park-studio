@@ -1,5 +1,16 @@
 import {T,V,box,cylinder,tube,ring,group,label,materials,random} from './geometry.js';
 
+// Leaf mass: an icosphere pushed in and out by a few lobes, so crowns read as clumps, not balls.
+function crownGeometry(){
+ const g=new T.IcosahedronGeometry(1,1),p=g.attributes.position,v=new T.Vector3();
+ const lobes=Array.from({length:5},()=>[new T.Vector3(random()-.5,random()*.6-.1,random()-.5).normalize(),.14+random()*.12]);
+ for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).normalize();let r=.9;for(const [dir,amp] of lobes)r+=amp*Math.max(0,v.dot(dir))**3;r+=Math.sin(v.x*7.1+v.z*3.3)*Math.cos(v.y*5.7)*.05;if(v.y<-.4)r*=.84;v.multiplyScalar(r);p.setXYZ(i,v.x,v.y,v.z);}
+ g.computeVertexNormals();
+ // Smooth normals keep the soft look; computeVertexNormals on a non-indexed icosphere would facet it.
+ const n=g.attributes.normal;for(let i=0;i<n.count;i++){v.fromBufferAttribute(p,i).normalize();const f=new T.Vector3().fromBufferAttribute(n,i);f.lerp(v,.55).normalize();n.setXYZ(i,f.x,f.y,f.z);}
+ return g;
+}
+
 export function landscape(root){
  const site=group(root,'site/plinth');site.userData.layer='ground';
  box(site,0,-.15,0,164,.16,124,'stone',.12);
@@ -35,6 +46,10 @@ export function landscape(root){
   for(let xx=-w/2+5;xx<w/2-3;xx+=10){box(g,xx,h+.35,0,3.2,.5,d*.64,'districtGlass');box(g,xx,h+.64,0,3.1,.08,d*.64,'metal');}
   for(const xx of [-w*.27,w*.27]){box(g,xx,h+.55,-d*.28,4,.7,3,'districtWall');box(g,xx,h+.94,-d*.28,3.6,.08,2.6,'dark');}
   for(let xx=-w/2+7;xx<w/2;xx+=12){box(g,xx,2.1,d/2+.04,4.4,4.2,.12,'districtGlass');box(g,xx,4.4,d/2+1.7,6,.16,3.4,'districtWall');}
+  // Coping, downpipes and a row of roof vents keep the neighbours from reading as plain blocks.
+  for(const side of [-1,1]){box(g,0,h+.68,side*(d/2-.13),w+.1,.05,.36,'metal');box(g,side*(w/2-.13),h+.68,0,.36,.05,d+.1,'metal');
+   for(let xx=-w/2+1.2;xx<w/2;xx+=12)cylinder(g,xx,h/2,side*(d/2+.32),.08,h,'metal',8);}
+  for(let xx=-w/2+3;xx<w/2-2;xx+=7)for(const zz of [d*.36]){cylinder(g,xx,h+.5,zz,.28,.7,'metal',10);cylinder(g,xx,h+.92,zz,.4,.16,'metal',10,.12);}
  }
  for(const b of [[-145,-31,53,60,11],[148,-28,54,64,12],[-48,-131,61,60,13],[37,-132,64,61,10],[145,-133,55,58,14],[-145,-132,52,60,12],[-142,129,52,63,8],[145,130,56,61,10],[-45,-244,66,61,18],[42,-246,65,65,15]])neighbour(...b);
  // A planted public green and retention basin complete the foreground block.
@@ -132,9 +147,13 @@ export function landscape(root){
  const allLeaves=leaves.flat(),cards=new T.InstancedMesh(new T.PlaneGeometry(1,1),leafMaterial,allLeaves.length*3);
  let ci=0;for(const p of allLeaves){for(let a=0;a<3;a++){dummy.position.set(p.x,p.y,p.z);dummy.scale.set(p.sx*2.2,p.sy*2.2,1);dummy.rotation.set((random()-.5)*1.7,p.r+a*Math.PI/3,(random()-.5)*.6);dummy.updateMatrix();cards.setMatrixAt(ci++,dummy.matrix);}}
  cards.castShadow=cards.receiveShadow=true;cards.instanceMatrix.needsUpdate=true;trees.add(cards);
+ const crown=crownGeometry(),tint=new T.Color();
  for(let color=0;color<6;color++){
- const entries=leaves[color],mesh=new T.InstancedMesh(new T.IcosahedronGeometry(1,1),materials['leaf'+color],entries.length);
- for(let i=0;i<entries.length;i++){const p=entries[i];dummy.position.set(p.x,p.y,p.z);dummy.scale.set(p.sx*.2,p.sy*.24,p.sz*.2);dummy.rotation.set(0,p.r,.15);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);}
+ const entries=leaves[color],mesh=new T.InstancedMesh(crown,materials['leaf'+color],entries.length);
+ for(let i=0;i<entries.length;i++){const p=entries[i];dummy.position.set(p.x,p.y,p.z);dummy.scale.set(p.sx*.2,p.sy*.24,p.sz*.2);dummy.rotation.set((random()-.5)*.5,p.r,.15+(random()-.5)*.4);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);
+ // Per-clump value/hue jitter: sunlit tops a touch warmer, lower clumps darker.
+ const k=.86+random()*.2+Math.min(1,p.y/7)*.07;tint.setRGB(k*(.98+random()*.06),k,k*(.94+random()*.06));mesh.setColorAt(i,tint);}
+ if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
  mesh.castShadow=mesh.receiveShadow=true;mesh.instanceMatrix.needsUpdate=true;trees.add(mesh);
  }
  const trunk=new T.InstancedMesh(new T.CylinderGeometry(.055,.14,1,7),materials.bark,trunks.length);
@@ -197,14 +216,24 @@ export function landscape(root){
  function hydrant(x,z){box(civil,x,.2,z,.6,.12,.6,'concrete');cylinder(civil,x,.62,z,.13,.72,'hydrant',16);cylinder(civil,x,1.02,z,.16,.08,'hydrant',16);const cap=new T.Mesh(new T.SphereGeometry(.13,14,8,0,Math.PI*2,0,Math.PI/2),materials.hydrant);cap.position.set(x,1.06,z);cap.castShadow=true;civil.add(cap);for(const a of [0,Math.PI]){const o=cylinder(civil,x+Math.cos(a)*.17,.72,z+Math.sin(a)*.17,.055,.14,'hydrant',10);o.rotation.z=Math.PI/2;}}
  for(const [x,z] of [[-67.9,-30],[-67.9,18],[67.9,-36],[67.9,12],[-40,-47.9],[10,-47.9],[-22,47.4],[62,47.4],[-4.1,-22],[4.1,14]])hydrant(x,z);
  // Manholes follow the utility corridors under the carriageways; gully grates sit at the kerb.
- for(let z=-44;z<=44;z+=16)cylinder(civil,1.2,.12,z,.36,.02,'dark',20);
- for(let x=-60;x<=60;x+=20)cylinder(civil,x,.12,-.2,.36,.02,'dark',20);
- for(const x of [-73,73])for(let z=-40;z<=40;z+=20)cylinder(civil,x+1.6,.12,z+6,.36,.02,'dark',20);
+ function manhole(x,z){cylinder(civil,x,.12,z,.36,.02,'dark',20);ring(civil,x,.128,z,.375,.022,'metal');for(const a of [0,Math.PI/2])box(civil,x,.132,z,.05,.008,.58,'metal',0,a);ring(civil,x,.13,z,.2,.012,'metal');}
+ for(let z=-44;z<=44;z+=16)manhole(1.2,z);
+ for(let x=-60;x<=60;x+=20)manhole(x,-.2);
+ for(const x of [-73,73])for(let z=-40;z<=40;z+=20)manhole(x+1.6,z+6);
+ // Solid edge lines along the internal carriageways, stop bars at the junction mouths.
+ for(const x of [-73,73])for(const s of [-1,1])for(const [a,b] of [[-48,-4],[6,48]])box(roads,x+s*3.55,.128,(a+b)/2,.12,.012,b-a,'white');
+ for(const [a,b] of [[-65,-4],[4,65]])for(const s of [-1,1]){box(roads,(a+b)/2,.128,1+s*3.0,b-a,.012,.12,'white');box(roads,(a+b)/2,.129,-53+s*3.55,b-a,.012,.12,'white');}
+ for(const x of [-73,73])for(const z of [-4.6,6.6])box(roads,x+(z<0?-2:2),.131,z,3.6,.013,.32,'white');
  for(const x of [-69.3,69.3])for(let z=-45;z<=45;z+=18){box(civil,x,.12,z,.36,.02,.75,'dark');for(let k=-.3;k<=.31;k+=.1)box(civil,x,.132,z+k,.3,.01,.03,'metal');}
  for(let x=-60;x<=60;x+=24)for(const z of [-49.3,48.3]){box(civil,x,.12,z,.75,.02,.36,'dark');for(let k=-.3;k<=.31;k+=.1)box(civil,x+k,.132,z,.03,.01,.3,'metal');}
  // Non-asset street lights on the central roads; the monitored LGT poles stay on the perimeter roads.
  function streetLight(x,z,rot){const l=group(civil,'street-light',x,0,z);l.rotation.y=rot;box(l,0,.1,0,.6,.2,.6,'concrete');cylinder(l,0,3.4,0,.075,6.6,'dark',12,.05);tube(l,[[0,6.5,0],[0,6.75,.2],[0,6.75,1.2]],.045,'dark');box(l,0,6.7,1.2,.36,.1,.7,'dark');box(l,0,6.64,1.2,.28,.012,.5,'lamp');}
  for(const x of [-50,-25,25,50])streetLight(x,5.1,Math.PI);
+ // Twin-head area lights for the EV bays (non-asset; the monitored LGT poles stay as they were).
+ function areaLight(x,z){const l=group(civil,'car-park-light',x,0,z);box(l,0,.25,0,.55,.5,.55,'concrete',.04);cylinder(l,0,4.3,0,.07,7.6,'dark',12,.05);box(l,0,8.05,0,.12,.1,2.4,'dark',.02);
+ for(const s of [-1,1]){box(l,0,8,s*1.2,.42,.12,.62,'dark',.04);box(l,0,7.935,s*1.2,.34,.012,.5,'lamp');}
+ box(l,0,1.1,.08,.16,.3,.06,'metal',.01);}
+ for(const x of [29.5,43.5])areaLight(x,41.2);
  for(const z of [-36,-16,20,40])streetLight(3.9,z,-Math.PI/2);
  // Bollards close the forecourt to cars.
  for(let x=-34.4;x<=-27.5;x+=1.35){cylinder(civil,x,.55,47.3,.08,.9,'metal',14);box(civil,x,.93,47.3,.17,.03,.17,'dark');}

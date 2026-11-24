@@ -15,6 +15,11 @@ export function surface(name,base,scale=1){
  const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d');
  ctx.fillStyle=base;ctx.fillRect(0,0,256,256);
  for(let i=0;i<18000;i++){const v=random();ctx.fillStyle=`rgba(${v>.5?'255,255,255':'0,0,0'},${random()*(name==='grass'?.1:.055)})`;ctx.fillRect(random()*256,random()*256,1+random()*1.2,1+random()*1.2);}
+ if(name==='weathered'){
+  // Soft large-scale mottling and faint run-off streaks so wide roofs are not one flat value.
+  for(let i=0;i<60;i++){const x=random()*256,y=random()*256,r=20+random()*60,g=ctx.createRadialGradient(x,y,0,x,y,r),a=.035+random()*.04,c=random()>.5?'255,255,255':'40,45,40';g.addColorStop(0,`rgba(${c},${a})`);g.addColorStop(1,`rgba(${c},0)`);ctx.fillStyle=g;for(const dx of [-256,0,256])for(const dy of [-256,0,256]){ctx.save();ctx.translate(dx,dy);ctx.fillRect(x-r,y-r,r*2,r*2);ctx.restore();}}
+  for(let i=0;i<40;i++){ctx.fillStyle=`rgba(30,35,30,${.015+random()*.03})`;ctx.fillRect(random()*256,random()*256,1+random()*2,30+random()*90);}
+ }
  if(name==='pavers'){ctx.strokeStyle='#00000022';ctx.lineWidth=1;for(let i=0;i<=256;i+=32){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,256);ctx.moveTo(0,i);ctx.lineTo(256,i);ctx.stroke();}}
  const map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(scale,scale);map.anisotropy=8;return map;
 }
@@ -23,7 +28,7 @@ export function palette(){
  materials.stone.bumpMap=materials.stone.map;
  material('concrete','#ece9df',.8,.02,{map:surface('concrete','#edece6',1)});
  material('ivory','#eee7d7',.43,.13);
- material('roof','#bec1b7',.83,.15);
+ material('roof','#bec1b7',.83,.15,{map:surface('weathered','#f2f2ec',1)});
  material('dark','#263937',.56,.55);
  material('metal','#9ba8a4',.32,.82);
  material('copper','#a99572',.42,.62);
@@ -55,7 +60,7 @@ export function palette(){
  material('rubber','#202823',.93);
  material('bark','#675445',1);
  material('parkingPaint','#496552',.94,0,{map:materials.asphalt.map});materials.parkingPaint.userData.worldUV=3;
- for(const [key,metres] of [['stone',1.6],['concrete',1],['paving',8],['asphalt',3],['grass',2]]){materials[key].userData.worldUV=metres;materials[key].map.repeat.set(1,1);}
+ for(const [key,metres] of [['stone',1.6],['concrete',1],['paving',8],['asphalt',3],['grass',2],['roof',9]]){materials[key].userData.worldUV=metres;materials[key].map.repeat.set(1,1);}
  for(let i=0;i<6;i++)material('leaf'+i,['#344c31','#4d623b','#5b7044','#718452','#7f8c5e','#4b6750'][i],.92);
  return materials;
 }
