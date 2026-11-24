@@ -17,13 +17,16 @@ export function create(canvas,meta,_buffer,{onPick=()=>{},onFrame=()=>{},onError
  function physicalBounds(g){const box=new T.Box3();g.updateWorldMatrix(true,true);g.traverse(o=>{if(o.isMesh&&!o.userData.nonPhysical)box.union(new T.Box3().setFromObject(o));});return box;}
  const renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',preserveDrawingBuffer:true});
  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFShadowMap;renderer.shadowMap.autoUpdate=false;renderer.localClippingEnabled=true;renderer.info.autoReset=false;
- renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=.90;renderer.outputColorSpace=T.SRGBColorSpace;
+ renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;renderer.outputColorSpace=T.SRGBColorSpace;
  const scene=new T.Scene();scene.background=new T.Color('#cdd9d9');scene.fog=new T.Fog('#cdd9d9',350,850);
  const camera=new T.PerspectiveCamera(34,1,.15,1300);camera.position.set(146,125,189);
  const controls=new OrbitControls(camera,canvas);controls.target.set(-12,1,11);controls.enableDamping=true;controls.dampingFactor=.065;controls.minDistance=3;controls.maxDistance=420;controls.maxPolarAngle=Math.PI*.485;controls.screenSpacePanning=true;controls.zoomSpeed=.8;controls.rotateSpeed=.55;controls.update();
  palette();
  let envTarget;
- function rebuildEnvironment(){const pmrem=new T.PMREMGenerator(renderer),room=new RoomEnvironment(),next=pmrem.fromScene(room,.03);envTarget?.dispose();envTarget=next;scene.environment=next.texture;room.dispose();pmrem.dispose();}
+ // scene.environmentIntensity overrides every material's envMapIntensity, so diffuse surfaces get a
+ // low environment fill (shadows stay readable) while glass and metals carry their own envMap.
+ const reflective={glass:.5,glassLight:.55,districtGlass:.75,roofGlass:.7,water:1.1,solar:.6,metal:.8,copper:.7,dark:.5,black:.45,pump:.6,pipe:.65,paintBlue:.55,hydrant:.4};
+ function rebuildEnvironment(){const pmrem=new T.PMREMGenerator(renderer),room=new RoomEnvironment(),next=pmrem.fromScene(room,.03);envTarget?.dispose();envTarget=next;scene.environment=next.texture;for(const [k,i] of Object.entries(reflective))if(materials[k]){materials[k].envMap=next.texture;materials[k].envMapIntensity=i;materials[k].needsUpdate=true;}room.dispose();pmrem.dispose();}
  rebuildEnvironment();scene.environmentIntensity=.63;scene.environmentRotation.set(0,.7,0);
  const hemi=new T.HemisphereLight('#dfeaf3','#7b8065',1.55);scene.add(hemi);
  const sun=new T.DirectionalLight('#fff0d6',2.45);sun.position.set(-90,105,65);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-122,right:122,top:105,bottom:-105,near:1,far:340});sun.shadow.normalBias=.08;sun.shadow.bias=-.00008;sun.shadow.radius=2.6;scene.add(sun);scene.add(sun.target);
@@ -44,7 +47,7 @@ export function create(canvas,meta,_buffer,{onPick=()=>{},onFrame=()=>{},onError
  const spot=new T.PointLight('#ffd49b',0,15,2);spot.position.set(35,7,30);scene.add(spot);
  const rt=new T.WebGLRenderTarget(100,100,{type:T.HalfFloatType,samples:Math.min(4,renderer.capabilities.maxSamples)});
  const composer=new EffectComposer(renderer,rt);composer.addPass(new RenderPass(scene,camera));
- const ao=new GTAOPass(scene,camera,100,100);ao.blendIntensity=.62;ao.updateGtaoMaterial({radius:.8,thickness:1.4,distanceExponent:1.3,distanceFallOff:1,samples:8,scale:1,screenSpaceRadius:false});composer.addPass(ao);
+ const ao=new GTAOPass(scene,camera,100,100);ao.blendIntensity=.7;ao.updateGtaoMaterial({radius:1.6,thickness:1.4,distanceExponent:1.3,distanceFallOff:1,samples:8,scale:1,screenSpaceRadius:false});composer.addPass(ao);
  // Bloom only at night and on the fine setting; HDR threshold keeps it on lamps, not on sunlit walls.
  const bloom=new UnrealBloomPass(new T.Vector2(64,64),0,.35,.92);bloom.enabled=false;composer.addPass(bloom);
  composer.addPass(new OutputPass());
@@ -88,7 +91,7 @@ export function create(canvas,meta,_buffer,{onPick=()=>{},onFrame=()=>{},onError
  const onRestored=()=>{try{rebuildEnvironment();state.lost=false;dirty=true;renderer.shadowMap.needsUpdate=true;last=performance.now();raf=requestAnimationFrame(frame);}catch(e){state.lost=true;onError('图形恢复失败，请刷新页面重新载入。设备数据仍可使用。');}};canvas.addEventListener('webglcontextlost',onLost);canvas.addEventListener('webglcontextrestored',onRestored);
  function lighting(dt){const goal=night?1:0;nightMix=reduced?goal:T.MathUtils.damp(nightMix,goal,3,dt);const v=nightMix;
  scene.background.set('#cdd9d9').lerp(new T.Color('#3c5665'),v);scene.fog.color.copy(scene.background);floor.material.color.set('#d7d6cb').lerp(new T.Color('#46616b'),v);
- sun.intensity=T.MathUtils.lerp(2.75,.38,v);sun.color.set('#fff0d9').lerp(new T.Color('#bfdcf7'),v);hemi.intensity=T.MathUtils.lerp(.7,.32,v);rim.intensity=T.MathUtils.lerp(.48,.55,v);scene.environmentIntensity=T.MathUtils.lerp(.56,.32,v);materials.lamp.emissiveIntensity=T.MathUtils.lerp(.5,3,v);materials.amber.emissiveIntensity=T.MathUtils.lerp(.05,1.3,v);materials.glass.emissive.set('#af7540');materials.glass.emissiveIntensity=v*.025;if(materials.windowLight)materials.windowLight.emissiveIntensity=v*1.6;spot.intensity=v*80;finish.uniforms.night.value=v;bloom.strength=v*.42;bloom.enabled=high&&v>.02;
+ sun.intensity=T.MathUtils.lerp(3.35,.38,v);sun.color.set('#fff0d9').lerp(new T.Color('#bfdcf7'),v);hemi.intensity=T.MathUtils.lerp(.5,.32,v);rim.intensity=T.MathUtils.lerp(.18,.55,v);scene.environmentIntensity=T.MathUtils.lerp(.16,.3,v);for(const [k,i] of Object.entries(reflective))if(materials[k])materials[k].envMapIntensity=i*T.MathUtils.lerp(1,.6,v);materials.lamp.emissiveIntensity=T.MathUtils.lerp(.5,3,v);materials.amber.emissiveIntensity=T.MathUtils.lerp(.05,1.3,v);materials.glass.emissive.set('#af7540');materials.glass.emissiveIntensity=v*.025;if(materials.windowLight)materials.windowLight.emissiveIntensity=v*1.6;spot.intensity=v*80;finish.uniforms.night.value=v;bloom.strength=v*.42;bloom.enabled=high&&v>.02;
  for(const [id,g] of assets){if(!id.startsWith('LGT'))continue;const d=deviceStates.get(id),on=d?.powered&&d?.status!=='offline';g.traverse(o=>{if(o.userData.lightPool)o.material.opacity=v*(on?0.28:0);if(o.userData.luminaire)o.material.emissiveIntensity=on?T.MathUtils.lerp(.5,3,v):0;});}}
  function frame(now){if(disposed||state.lost)return;raf=requestAnimationFrame(frame);if(document.hidden){last=now;return;}const elapsed=now-last,dt=Math.min(elapsed/1000,.06);last=now;
  if(transition){const t=Math.min(1,(now-transition.start)/transition.duration),s=t*t*t*(t*(t*6-15)+10);camera.position.lerpVectors(transition.from,transition.to,s);controls.target.lerpVectors(transition.fromTarget,transition.target,s);if(t===1)transition=null;dirty=true;}

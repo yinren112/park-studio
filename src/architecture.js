@@ -1,4 +1,4 @@
-import {T,box,cylinder,tube,ring,group,label,materials,random} from './geometry.js';
+import {T,box,cylinder,tube,ring,group,label,materials,random,contactShadow} from './geometry.js';
 
 function railing(g,x,y,z,w,d){
  for(const h of [.35,1.05]){box(g,x,y+h,z-d/2,w,.035,.035,'metal');box(g,x,y+h,z+d/2,w,.035,.035,'metal');box(g,x-w/2,y+h,z,.035,.035,d,'metal');box(g,x+w/2,y+h,z,.035,.035,d,'metal');}
@@ -46,6 +46,7 @@ function conductor(g,w,d,y){
 function hq(root){
  const g=group(root,'building/research-center',-36,0,25);
  box(g,0,.18,0,44,.36,27,'stone');
+ contactShadow(g,[[0,0,41,25,.37]],2.2);
  // Four office floors, 3.75 m floor-to-floor. Orientation follows the sun: +Z faces south and gets
  // horizontal shading, east/west get vertical fins, the north face is a punched spandrel wall.
  for(let k=0;k<4;k++){
@@ -106,6 +107,7 @@ function hq(root){
 function factory(root,name,x,z,w,d,h,index){
  const g=group(root,name,x,0,z);
  box(g,0,.17,0,w+2,.34,d+2,'stone',.1);
+ contactShadow(g,[[0,0,w+.3,d+.3,.35]],2.6);
  box(g,0,h/2,0,w,h,d,'concrete',.18);
  // Lower dark plinth anchors the facade. Glazed clerestory gives a human scale.
  box(g,0,1,0,w+.12,1.8,d+.12,'dark');
@@ -189,6 +191,7 @@ function energy(root){
  box(g,0,.2,-1.6,32,.4,23.8,'stone',.15);
  // The plant room has actual floor and wall thickness, so sectioning reveals a room.
  box(g,0,.24,-3,30,.24,20,'concrete',.04);
+ contactShadow(g,[[0,-3,30.4,20.4,.41]],2.2);
  for(const z of [-13,7]){box(g,0,3.5,z,30,7,.3,'concrete',.06);box(g,0,1,z+(z>0?.18:-.18),30.15,1.6,.12,'dark');}
  for(const x of [-15,15]){box(g,x,3.5,-3,.3,7,20,'concrete',.06);box(g,x+Math.sign(x)*.18,1,-3,.12,1.6,20,'dark');}
  // Passive hydraulic plant and service infrastructure; monitored assets retain their catalog IDs.
@@ -230,7 +233,7 @@ function energy(root){
 export function architecture(root){
  const out=[hq(root),factory(root,'building/production-a',-32,-24,52,32,10.2,2),factory(root,'building/production-b',29,-30,44,28,11.6,3),energy(root)];
  const g=group(root,'building/gatehouse',13,0,58.8);
- box(g,0,.15,0,7,.3,4.2,'stone',.1);box(g,0,1.7,0,6,3.2,3.6,'glass',.25);box(g,0,.55,0,6.2,.8,3.8,'terra',.12);box(g,0,3.45,0,8,.25,4.6,'ivory',.1);
+ box(g,0,.15,0,7,.3,4.2,'stone',.1);box(g,0,1.7,0,6,3.2,3.6,'glass',.25);contactShadow(g,[[0,0,6.2,3.8,.31]],1.1);box(g,0,.55,0,6.2,.8,3.8,'terra',.12);box(g,0,3.45,0,8,.25,4.6,'ivory',.1);
  for(const x of [-2.8,0,2.8])for(const z of [-1.83,1.83])box(g,x,1.95,z,.07,2.6,.08,'copper');
  box(g,-3.03,1.55,0,.08,2.75,1.2,'metal',.025);box(g,-3.08,1.72,0,.03,2.24,1.04,'glass');box(g,-3.12,1.3,.38,.06,.25,.04,'copper');
  box(g,-13,4.4,-2,20,.35,5,'dark',.14);for(const x of [-22,-4]){box(g,x,.14,-2,.65,.28,.65,'stone',.05);box(g,x,2.2,-2,.22,4.4,.22,'copper');}

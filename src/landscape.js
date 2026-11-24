@@ -1,4 +1,4 @@
-import {T,V,box,cylinder,tube,ring,group,label,materials,random} from './geometry.js';
+import {T,V,box,cylinder,tube,ring,group,label,materials,random,contactShadow} from './geometry.js';
 
 // Leaf mass: an icosphere pushed in and out by a few lobes, so crowns read as clumps, not balls.
 function crownGeometry(){
@@ -32,7 +32,9 @@ export function landscape(root){
  for(const x of [-88.5,88.5,-103.5,103.5])for(const [a,b] of [[-178,-90],[-62,62],[90,178]])box(district,x,.02,(a+b)/2,.28,.24,b-a,'stone',.04);
  for(const z of [-83.5,-68.5,68.5,83.5])for(const [a,b] of [[-250,-110],[-82,-5],[5,82],[110,250]])box(district,(a+b)/2,.02,z,b-a,.24,.28,'stone',.04);
  // Low industrial neighbours establish scale without competing with monitored assets.
+ const footprints=[];
  function neighbour(x,z,w,d,h){
+  footprints.push([x,z,w+.3,d+.3,.18]);
   const g=group(district,'district/industrial-building',x,0,z);
   box(g,0,.05,0,w+6,.24,d+6,'paving',.08);
   box(g,0,h/2,0,w,h,d,'districtWall');
@@ -52,6 +54,11 @@ export function landscape(root){
   for(let xx=-w/2+3;xx<w/2-2;xx+=7)for(const zz of [d*.36]){cylinder(g,xx,h+.5,zz,.28,.7,'metal',10);cylinder(g,xx,h+.92,zz,.4,.16,'metal',10,.12);}
  }
  for(const b of [[-145,-31,53,60,11],[148,-28,54,64,12],[-48,-131,61,60,13],[37,-132,64,61,10],[145,-133,55,58,14],[-145,-132,52,60,12],[-142,129,52,63,8],[145,130,56,61,10],[-45,-244,66,61,18],[42,-246,65,65,15]])neighbour(...b);
+ contactShadow(district,footprints,3.2,.38);
+ // Wheel tracks: slightly darker, polished asphalt where tyres run, lane by lane.
+ const track=(parent,x,z,w,d,y)=>box(parent,x,y,z,w,.008,d,'asphaltWorn');
+ for(const x of [-96,96])for(const [a,b] of [[-300,-199],[-181,-85],[-67,67],[85,183],[201,300]])for(const o of [-6.05,-4.45,-2.55,-.95,.95,2.55,4.45,6.05])track(district,x+o,(a+b)/2,.6,b-a,-.056);
+ for(const z of [-76,76,-190,192])for(const [a,b] of [[-300,-105],[-87,87],[105,300]])for(const o of [-6.05,-4.45,-2.55,-.95,.95,2.55,4.45,6.05])track(district,(a+b)/2,z+o,b-a,.6,-.056);
  // A planted public green and retention basin complete the foreground block.
  box(district,0,.0,130,156,.24,73,'grass',.3);
  box(district,0,.14,130,5,.12,73,'paving',.06);
@@ -68,6 +75,9 @@ export function landscape(root){
  box(roads,0,.08,1,137,.07,6.8,'asphalt');box(roads,0,.08,0,6,.07,102,'asphalt');
  box(roads,0,.08,55.5,8,.07,13,'asphalt');
  for(let z=-48;z<=48;z+=5)for(const x of [-73,73])box(roads,x,.128,z,.13,.014,2.25,'white');
+ for(const x of [-73,73])for(const [a,b] of [[-48,-4],[6,48]])for(const o of [-2.8,-1.2,1.2,2.8])track(roads,x+o,(a+b)/2,.55,b-a,.119);
+ for(const [z,offs] of [[-53,[-2.8,-1.2,1.2,2.8]],[1,[-2.45,-.95,.95,2.45]],[51,[-2.15,-.85,.85,2.15]]])for(const [a,b] of [[-68,-4],[4,68]])for(const o of offs)track(roads,(a+b)/2,z+o,b-a,.5,.119);
+ for(const [a,b] of [[-48,-5],[7,48]])for(const o of [-2.15,-.85,.85,2.15])track(roads,o,(a+b)/2,.5,b-a,.119);
  for(let x=-67;x<=67;x+=5)for(const z of [-53,51,1]){if(Math.abs(x)<6||z===51&&Math.abs(x+31)<5)continue;box(roads,x,.13,z,2.25,.014,.13,'white');}
  for(let z=-46;z<47;z+=5){if(z>-7&&z<10)continue;box(roads,0,.13,z,.13,.014,2.25,'white');}
  // Break kerbs at junctions, parking mouths and the pedestrian crossing.
